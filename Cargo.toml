@@ -1,0 +1,25 @@
+[package]
+name = "actixutils"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+actix-web = "4.12.1"
+anyhow = "1.0.102"
+async-trait = "0.1.89"
+bytes = "1.11.1"
+chrono = "0.4.44"
+dashmap = "6.2.1"
+futures-util = "0.3.32"
+jsonwebtoken = "9.3.1"
+rand = "0.10.1"
+reqwest = "0.13.2"
+serde = "1.0.228"
+tokio = "1.52.3"
+tracing = "0.1.44"
+uuid = { version = "1.23.1", features = ["serde", "v4"] }
+event-stream = { path = "../event-stream", }
+#optional = true }
+
+#[features]
+#es = ["event-stream"]

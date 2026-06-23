@@ -1,4 +1,3 @@
-use crate::Identity;
 use crate::middleware::RequestIdStr;
 use actix_web::HttpMessage;
 use actix_web::error::ErrorInternalServerError;
@@ -9,6 +8,7 @@ use actix_web::{
 use event_stream::{Event, EventMetaData, EventStream, Publishable};
 use futures_util::future::LocalBoxFuture;
 use std::future::{Ready, ready};
+use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::task::{Context as Ctx, Poll};
@@ -34,19 +34,37 @@ impl Context {
     }
 }
 
-#[derive(Clone)]
-pub struct ReadContext {
-    es: Arc<dyn EventStream>,
-    name: String,
+pub trait GetId {
+    fn get_id(&self) -> Uuid;
 }
 
-impl ReadContext {
-    pub fn new(es: Arc<dyn EventStream>, name: String) -> Self {
-        Self { es, name }
+pub struct ReadContext<T> {
+    es: Arc<dyn EventStream>,
+    name: String,
+    _marker: PhantomData<T>,
+}
+
+impl<T> Clone for ReadContext<T> {
+    fn clone(&self) -> Self {
+        Self {
+            es: self.es.clone(),
+            name: self.name.clone(),
+            _marker: PhantomData::<T>,
+        }
     }
 }
 
-impl<S, B> Transform<S, ServiceRequest> for ReadContext
+impl<T> ReadContext<T> {
+    pub fn new(es: Arc<dyn EventStream>, name: String) -> Self {
+        Self {
+            es,
+            name,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<S, B, T: GetId + 'static> Transform<S, ServiceRequest> for ReadContext<T>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
@@ -55,7 +73,7 @@ where
     type Response = ServiceResponse<B>;
     type Error = Error;
     type InitError = ();
-    type Transform = ReadContextService<S>;
+    type Transform = ReadContextService<S, T>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
@@ -66,12 +84,12 @@ where
     }
 }
 
-pub struct ReadContextService<S> {
+pub struct ReadContextService<S, T> {
     service: Rc<S>,
-    state: ReadContext,
+    state: ReadContext<T>,
 }
 
-impl<S, B> Service<ServiceRequest> for ReadContextService<S>
+impl<S, B, T: GetId + 'static> Service<ServiceRequest> for ReadContextService<S, T>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
@@ -104,14 +122,14 @@ where
                     return Err(ErrorInternalServerError("Missing request id"));
                 }
             };
-            let user_id = match req.extensions().get::<Identity>() {
+            let user_id = match req.extensions().get::<T>() {
                 Some(u) => u,
                 None => {
                     tracing::error!("Identity not found in request data");
                     return Err(ErrorInternalServerError("Missing identity"));
                 }
             }
-            .sub;
+            .get_id();
 
             let ctx = Context {
                 request_id,

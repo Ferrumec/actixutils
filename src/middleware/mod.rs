@@ -8,8 +8,15 @@ mod idempondency;
 mod rate_limiter;
 pub use auth::Auth;
 pub use constant_time::ResponseEqualizer;
-pub use context::{Context, ReadContext};
+pub use context::{Context, GetId, ReadContext};
 pub use fns::{authority, identity};
 pub use idempondency::Idempotency;
 pub use rate_limiter::RateLimiter;
 pub use request_id::{RequestId, RequestIdStr};
+use crate::Authority;
+use uuid::Uuid;
+impl GetId for Authority {
+    fn get_id(&self) -> Uuid {
+        self.sub.clone()
+    }
+}

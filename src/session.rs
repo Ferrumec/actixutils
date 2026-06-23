@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use actix_web::{Error, FromRequest, HttpRequest, dev::Payload, error::ErrorUnauthorized};
+use actix_web::{
+    Error, FromRequest, HttpRequest,
+    dev::Payload,
+    error::{ErrorInternalServerError, ErrorUnauthorized},
+};
 use futures_util::future::{Ready, ready};
 
 pub trait SessionStore<T>: Send + Sync {
@@ -18,7 +22,9 @@ impl<T: 'static> FromRequest for Session<T> {
         let store = match req.app_data::<Arc<dyn SessionStore<T>>>() {
             Some(store) => store,
             None => {
-                return ready(Err(ErrorUnauthorized("Missing session store")));
+                return ready(Err(ErrorInternalServerError(
+                    "Session Extractor: Missing session store",
+                )));
             }
         };
 

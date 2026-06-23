@@ -1,4 +1,4 @@
-use crate::{Identity, Validate};
+use crate::Validate;
 use actix_web::{
     Error, HttpMessage,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
@@ -8,11 +8,11 @@ use actix_web::{
 use futures_util::future::{LocalBoxFuture, Ready, ready};
 use std::sync::Arc;
 
-pub struct Auth {
-    pub validator: Arc<dyn Validate<Identity>>,
+pub struct Auth<T> {
+    pub validator: Arc<dyn Validate<T>>,
 }
 
-impl<S, B> Transform<S, ServiceRequest> for Auth
+impl<S, B, T: 'static> Transform<S, ServiceRequest> for Auth<T>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
@@ -20,7 +20,7 @@ where
 {
     type Response = ServiceResponse<B>;
     type Error = Error;
-    type Transform = AuthMiddleware<S>;
+    type Transform = AuthMiddleware<S, T>;
     type InitError = ();
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
@@ -32,12 +32,12 @@ where
     }
 }
 
-pub struct AuthMiddleware<S> {
+pub struct AuthMiddleware<S, T> {
     service: Arc<S>,
-    signer: Arc<dyn Validate<Identity>>,
+    signer: Arc<dyn Validate<T>>,
 }
 
-impl<S, B> Service<ServiceRequest> for AuthMiddleware<S>
+impl<S, B, T: 'static> Service<ServiceRequest> for AuthMiddleware<S, T>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
@@ -54,6 +54,11 @@ where
         let signer = Arc::clone(&self.signer);
 
         Box::pin(async move {
+            // Try getting from request extensions
+            if req.extensions().contains::<T>() {
+                return svc.call(req).await;
+            };
+
             let token: Option<String> = req
                 .headers()
                 .get(header::AUTHORIZATION)

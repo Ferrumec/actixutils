@@ -62,7 +62,7 @@ impl<S> Idempotency<S> {
 }
 
 use actix_web::{
-    Error, 
+    Error,
     body::{BoxBody, MessageBody},
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
 };

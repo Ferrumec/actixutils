@@ -1,21 +1,33 @@
-use std::sync::Arc;
-
 use crate::Validate;
-use actix_web::{Error, FromRequest, HttpRequest, dev::Payload, error::ErrorUnauthorized};
+use actix_web::HttpMessage;
+use actix_web::{
+    Error, FromRequest, HttpRequest,
+    dev::Payload,
+    error::{ErrorInternalServerError, ErrorUnauthorized},
+};
 use futures_util::future::{Ready, ready};
+use std::sync::Arc;
 
 pub struct Auth<T>(pub T);
 
-impl<T: 'static> FromRequest for Auth<T> {
+impl<T: Clone + 'static> FromRequest for Auth<T> {
     type Error = Error;
     type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
+        // Try getting from request extensions
+        match req.extensions().get::<T>() {
+            Some(identity) => return ready(Ok(Auth(identity.clone()))),
+            None => (),
+        };
+
         // 1. Get app state
         let state = match req.app_data::<Arc<dyn Validate<T>>>() {
             Some(data) => data,
             None => {
-                return ready(Err(ErrorUnauthorized("Missing app state")));
+                return ready(Err(ErrorInternalServerError(
+                    "Auth Extractor: Missing Validate<T> from app state",
+                )));
             }
         };
 

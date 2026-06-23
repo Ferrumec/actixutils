@@ -2,10 +2,13 @@ use crate::Identity;
 use crate::middleware::RequestIdStr;
 use actix_web::HttpMessage;
 use actix_web::error::ErrorInternalServerError;
-use actix_web::{Error, dev::{Service, ServiceRequest, ServiceResponse, Transform}};
+use actix_web::{
+    Error,
+    dev::{Service, ServiceRequest, ServiceResponse, Transform},
+};
 use event_stream::{Event, EventMetaData, EventStream, Publishable};
 use futures_util::future::LocalBoxFuture;
-use std::future::{ready, Ready};
+use std::future::{Ready, ready};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::task::{Context as Ctx, Poll};
@@ -20,7 +23,7 @@ pub struct Context {
 }
 
 impl Context {
-   pub async fn publish<T: Publishable + Sync + Send>(&self, payload: T) {
+    pub async fn publish<T: Publishable + Sync + Send>(&self, payload: T) {
         let emd = EventMetaData::new(self.producer.clone())
             .with_trace_id(self.request_id)
             .with_user_id(self.user_id);
@@ -35,6 +38,12 @@ impl Context {
 pub struct ReadContext {
     es: Arc<dyn EventStream>,
     name: String,
+}
+
+impl ReadContext {
+    pub fn new(es: Arc<dyn EventStream>, name: String) -> Self {
+        Self { es, name }
+    }
 }
 
 impl<S, B> Transform<S, ServiceRequest> for ReadContext
@@ -101,7 +110,8 @@ where
                     tracing::error!("Identity not found in request data");
                     return Err(ErrorInternalServerError("Missing identity"));
                 }
-            }.sub;
+            }
+            .sub;
 
             let ctx = Context {
                 request_id,

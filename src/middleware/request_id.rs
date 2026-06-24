@@ -1,3 +1,24 @@
+//! Per-request UUID generation middleware.
+//!
+//! [`RequestId`] generates a fresh `UUIDv4` for each incoming request, stores it
+//! as a [`RequestIdStr`] in the request extensions, records it in the current
+//! `tracing` span, and appends it to the response as the `X-Request-Id` header.
+//!
+//! This header is useful for distributed tracing and correlating logs across
+//! services. The [`context`](super::context) middleware depends on `RequestId`
+//! being applied first.
+//!
+//! # Example
+//! ```rust,no_run
+//! use actixutils::middleware::RequestId;
+//! use actix_web::{web, App};
+//!
+//! App::new()
+//!     .wrap(RequestId)
+//!     .route("/ping", web::get().to(ping));
+//! # async fn ping() -> actix_web::HttpResponse { actix_web::HttpResponse::Ok().finish() }
+//! ```
+
 use actix_web::HttpMessage;
 use std::{rc::Rc, str::FromStr};
 
@@ -9,6 +30,7 @@ use actix_web::{
 use futures_util::future::{LocalBoxFuture, Ready, ready};
 use uuid::Uuid;
 
+/// Middleware factory that injects a unique request identifier into every request.
 pub struct RequestId;
 
 impl<S, B> Transform<S, ServiceRequest> for RequestId
@@ -28,9 +50,29 @@ where
     }
 }
 
+/// The inner service produced by [`RequestId`].
 pub struct RequestIdMiddleware<S> {
     service: Rc<S>,
 }
+
+/// A newtype wrapper around the request-scoped UUID string.
+///
+/// Stored in request extensions by [`RequestId`] middleware and read by
+/// [`ReadContext`](super::context::ReadContext) and any handler that needs the
+/// correlation ID.
+///
+/// # Example
+/// ```rust,no_run
+/// use actixutils::middleware::RequestIdStr;
+/// use actix_web::{HttpRequest, HttpResponse, HttpMessage};
+///
+/// async fn handler(req: HttpRequest) -> HttpResponse {
+///     if let Some(rid) = req.extensions().get::<RequestIdStr>() {
+///         println!("request id: {}", rid.0);
+///     }
+///     HttpResponse::Ok().finish()
+/// }
+/// ```
 #[derive(Clone)]
 pub struct RequestIdStr(pub String);
 

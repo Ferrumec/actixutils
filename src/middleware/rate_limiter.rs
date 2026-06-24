@@ -1,3 +1,39 @@
+//! Sliding-window, per-identity rate limiting middleware.
+//!
+//! [`RateLimiter<T>`] tracks the number of requests made by each identity within a
+//! rolling time window. Identities are extracted from the request using Actix-web's
+//! [`FromRequest`] mechanism — any extractor that implements [`GetId`] can be used as
+//! the key (e.g. [`Auth<Identity>`](crate::Auth), a session type, or a custom IP
+//! extractor).
+//!
+//! When the limit is exceeded the middleware returns `429 Too Many Requests`
+//! immediately, without invoking downstream handlers.
+//!
+//! The in-memory store is a [`DashMap`](dashmap::DashMap) of `VecDeque<Instant>` per
+//! identity. Old timestamps are pruned lazily on each request. This is suitable for
+//! single-instance deployments; for multi-node rate limiting you would need to back
+//! the store with Redis or a similar shared store.
+//!
+//! # Example
+//! ```rust,no_run
+//! use actixutils::{Auth, Identity};
+//! use actixutils::middleware::RateLimiter;
+//! use actix_web::{web, App};
+//! use std::time::Duration;
+//! use uuid::Uuid;
+//!
+//! // Implement GetId for the extractor type you want to key on
+//! impl actixutils::middleware::GetId for Auth<Identity> {
+//!     type Id = Uuid;
+//!     fn id(&self) -> Uuid { self.0.sub }
+//! }
+//!
+//! App::new().service(
+//!     web::scope("/api")
+//!         .wrap(RateLimiter::<Auth<Identity>>::new(100, Duration::from_secs(60)))
+//! );
+//! ```
+
 use std::{
     collections::VecDeque,
     future::{Ready, ready},
@@ -16,12 +52,26 @@ use actix_web::{
 use dashmap::DashMap;
 use futures_util::future::LocalBoxFuture;
 
+/// Provides a stable, hashable identity key for rate limiting.
+///
+/// Implement this on any Actix-web extractor (or wrapper) that identifies a client.
+/// The associated `Id` type is used as the hash-map key, so it must be `Eq + Hash + Clone`.
 pub trait GetId {
+    /// The type used as the rate-limiter map key.
     type Id: Eq + Hash + Clone + Send + Sync + 'static;
 
+    /// Extract the identity key from `self`.
     fn id(&self) -> Self::Id;
 }
 
+/// Middleware factory for sliding-window rate limiting.
+///
+/// `T` must implement both [`FromRequest`] (so it can be extracted per request)
+/// and [`GetId`] (so a unique key can be derived).
+///
+/// # Arguments to [`RateLimiter::new`]
+/// * `max_requests` — Maximum number of requests allowed per identity per `window`.
+/// * `window`       — Rolling time window duration.
 pub struct RateLimiter<T>
 where
     T: GetId,
@@ -50,6 +100,11 @@ impl<T> RateLimiter<T>
 where
     T: GetId,
 {
+    /// Create a new `RateLimiter`.
+    ///
+    /// # Arguments
+    /// * `max_requests` — Maximum requests allowed per identity within `window`.
+    /// * `window`       — Duration of the sliding time window.
     pub fn new(max_requests: usize, window: Duration) -> Self {
         Self {
             max_requests,
@@ -83,6 +138,7 @@ where
     }
 }
 
+/// The inner service produced by [`RateLimiter`].
 pub struct RateLimiterMiddleware<S, T>
 where
     T: GetId,
@@ -110,7 +166,7 @@ where
 
     fn call(&self, mut req: ServiceRequest) -> Self::Future {
         let limiter = self.limiter.clone();
-        let service = Arc::clone(&self.service); // <-- clone the Rc, not S
+        let service = Arc::clone(&self.service);
 
         Box::pin(async move {
             let (http_req, payload) = req.parts_mut();
@@ -121,6 +177,7 @@ where
 
                 let mut entry = limiter.store.entry(id).or_insert_with(VecDeque::new);
 
+                // Purge timestamps outside the current window
                 while let Some(timestamp) = entry.front() {
                     if now.duration_since(*timestamp) > limiter.window {
                         entry.pop_front();
@@ -130,9 +187,7 @@ where
                 }
 
                 if entry.len() >= limiter.max_requests {
-                    // Drop the entry guard BEFORE consuming req
                     drop(entry);
-
                     let response = req.into_response(
                         HttpResponse::TooManyRequests()
                             .body("Rate limit exceeded")

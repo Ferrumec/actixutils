@@ -1,3 +1,32 @@
+//! Event-stream publishing context middleware.
+//!
+//! [`ReadContext<T>`] builds a per-request [`Context`] value that bundles the
+//! request ID, the authenticated user's UUID, an [`EventStream`] handle, and a
+//! producer name. Handlers and services can then call [`Context::publish`] to emit
+//! domain events without needing to carry these dependencies in their function
+//! signatures.
+//!
+//! This middleware depends on two upstream middleware being applied first:
+//! 1. [`RequestId`](super::RequestId) — must have stored a [`RequestIdStr`] in the
+//!    request extensions.
+//! 2. Any auth middleware that stores a `T: GetId` in the extensions (e.g.
+//!    [`Auth<Authority>`](super::Auth)).
+//!
+//! # Example
+//! ```rust,no_run
+//! use actixutils::{Authority};
+//! use actixutils::middleware::{RequestId, ReadContext, Context};
+//! use actix_web::{web, App, HttpResponse, HttpMessage};
+//! use std::sync::Arc;
+//!
+//! async fn create_item(req: actix_web::HttpRequest) -> HttpResponse {
+//!     if let Some(ctx) = req.extensions().get::<Context>() {
+//!         // ctx.publish(MyEvent { ... }).await;
+//!     }
+//!     HttpResponse::Ok().finish()
+//! }
+//! ```
+
 use crate::middleware::RequestIdStr;
 use actix_web::HttpMessage;
 use actix_web::error::ErrorInternalServerError;
@@ -14,6 +43,10 @@ use std::sync::Arc;
 use std::task::{Context as Ctx, Poll};
 use uuid::Uuid;
 
+/// A request-scoped event publishing context.
+///
+/// `Context` is inserted into the request extensions by [`ReadContext<T>`]. Handlers
+/// retrieve it via `req.extensions().get::<Context>()` and call [`publish`](Self::publish).
 #[derive(Clone)]
 pub struct Context {
     request_id: Uuid,
@@ -23,6 +56,12 @@ pub struct Context {
 }
 
 impl Context {
+    /// Publish a domain event, attaching the current request ID and user ID as trace
+    /// metadata.
+    ///
+    /// Errors from the underlying [`EventStream`] are logged via `tracing::error!` but
+    /// not propagated, to avoid failing a request due to a non-critical observability
+    /// side-effect.
     pub async fn publish<T: Publishable + Sync + Send>(&self, payload: T) {
         let emd = EventMetaData::new(self.producer.clone())
             .with_trace_id(self.request_id)
@@ -34,10 +73,19 @@ impl Context {
     }
 }
 
+/// Extracts the authenticated user's UUID from any type that implements `GetId`.
+///
+/// Implement this for your identity or authority type so that [`ReadContext`] can
+/// derive the `user_id` field of the resulting [`Context`].
 pub trait GetId {
+    /// Return the UUID that identifies the authenticated user.
     fn get_id(&self) -> Uuid;
 }
 
+/// Middleware factory that constructs a [`Context`] for each request.
+///
+/// `T` must implement [`GetId`] and must be present in the request extensions when
+/// this middleware runs (i.e. an auth middleware must have run first).
 pub struct ReadContext<T> {
     es: Arc<dyn EventStream>,
     name: String,
@@ -55,6 +103,11 @@ impl<T> Clone for ReadContext<T> {
 }
 
 impl<T> ReadContext<T> {
+    /// Create a new `ReadContext` middleware factory.
+    ///
+    /// # Arguments
+    /// * `es`   — Shared handle to the event stream (e.g. NATS, Kafka, in-memory bus).
+    /// * `name` — Producer / service name embedded in every published event's metadata.
     pub fn new(es: Arc<dyn EventStream>, name: String) -> Self {
         Self {
             es,
@@ -84,6 +137,7 @@ where
     }
 }
 
+/// The inner service produced by [`ReadContext`].
 pub struct ReadContextService<S, T> {
     service: Rc<S>,
     state: ReadContext<T>,
@@ -122,6 +176,7 @@ where
                     return Err(ErrorInternalServerError("Missing request id"));
                 }
             };
+
             let user_id = match req.extensions().get::<T>() {
                 Some(u) => u,
                 None => {

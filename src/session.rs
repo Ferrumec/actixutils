@@ -1,3 +1,36 @@
+//! Cookie-based session extraction for Actix-web handlers.
+//!
+//! [`Session<T>`] reads the `session_id` cookie from the incoming request and
+//! delegates the look-up to a [`SessionStore<T>`] registered in the application
+//! state. The session type `T` is fully generic — it can be a struct, an enum, or
+//! any other `'static` value your application stores.
+//!
+//! # Setup
+//!
+//! ```rust,no_run
+//! use actixutils::{Session, SessionStore};
+//! use actix_web::{web, App, HttpResponse};
+//! use std::sync::Arc;
+//!
+//! struct MyStore { /* … */ }
+//!
+//! impl SessionStore<MySessionData> for MyStore {
+//!     fn get(&self, session_id: &str) -> Option<MySessionData> {
+//!         // look up session_id in your store
+//!         todo!()
+//!     }
+//! }
+//!
+//! # #[derive(Clone)] struct MySessionData;
+//! async fn handler(session: Session<MySessionData>) -> HttpResponse {
+//!     HttpResponse::Ok().finish()
+//! }
+//!
+//! // Register the store as app data:
+//! let store: Arc<dyn SessionStore<MySessionData>> = Arc::new(MyStore { /* … */ });
+//! App::new().app_data(web::Data::from(store));
+//! ```
+
 use std::sync::Arc;
 
 use actix_web::{
@@ -7,10 +40,26 @@ use actix_web::{
 };
 use futures_util::future::{Ready, ready};
 
+/// Backing store for [`Session<T>`] extraction.
+///
+/// Implement this trait on your own store type (e.g. a DashMap, Redis client
+/// wrapper, or database-backed store) and register it with Actix-web's app data
+/// as `Arc<dyn SessionStore<T>>`.
 pub trait SessionStore<T>: Send + Sync {
+    /// Look up a session by its ID string.
+    ///
+    /// Returns `Some(T)` if a valid, unexpired session exists, or `None` if the
+    /// session is unknown or has expired.
     fn get(&self, session_id: &str) -> Option<T>;
 }
 
+/// An extractor that resolves the `session_id` cookie to a typed session value.
+///
+/// `T` is the session data type returned by [`SessionStore::get`].
+///
+/// # Errors
+/// * `500 Internal Server Error` — `Arc<dyn SessionStore<T>>` is missing from app data.
+/// * `401 Unauthorized` — The `session_id` cookie is absent or maps to no stored session.
 pub struct Session<T>(pub T);
 
 impl<T: 'static> FromRequest for Session<T> {

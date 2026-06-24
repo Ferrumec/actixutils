@@ -1,3 +1,30 @@
+//! JWT authentication middleware.
+//!
+//! [`Auth<T>`] is the middleware counterpart to the [`crate::Auth`] extractor.
+//! While the extractor validates on each handler invocation, this middleware validates
+//! once per request and stores the claims in the request extensions, making them
+//! available to all downstream handlers and middleware in the chain.
+//!
+//! Use this when you want to protect an entire scope rather than individual routes.
+//!
+//! # Example
+//! ```rust,no_run
+//! use actixutils::{HS256Signer, Identity};
+//! use actixutils::middleware::Auth;
+//! use actix_web::{web, App};
+//! use std::sync::Arc;
+//!
+//! let signer: Arc<dyn actixutils::Validate<Identity>> =
+//!     Arc::new(HS256Signer::new("svc".to_string(), "secret".to_string()));
+//!
+//! App::new().service(
+//!     web::scope("/api")
+//!         .wrap(Auth { validator: signer })
+//!         .route("/me", web::get().to(me_handler))
+//! );
+//! # async fn me_handler() -> actix_web::HttpResponse { actix_web::HttpResponse::Ok().finish() }
+//! ```
+
 use crate::Validate;
 use actix_web::{
     Error, HttpMessage,
@@ -8,7 +35,17 @@ use actix_web::{
 use futures_util::future::{LocalBoxFuture, Ready, ready};
 use std::sync::Arc;
 
+/// Middleware factory for JWT bearer-token authentication.
+///
+/// Register a `Arc<dyn Validate<T>>` as `validator`. On every request the
+/// middleware extracts the bearer token from the `Authorization` header (or the
+/// `access_token` cookie), calls `validate`, and — on success — inserts the
+/// resulting `T` into the request extensions for downstream use.
+///
+/// If a `T` is already present in the extensions (e.g. from an outer middleware
+/// layer), the validation step is skipped.
 pub struct Auth<T> {
+    /// The token validator. Must be thread-safe (`Send + Sync`).
     pub validator: Arc<dyn Validate<T>>,
 }
 
@@ -32,6 +69,7 @@ where
     }
 }
 
+/// The inner service produced by [`Auth`].
 pub struct AuthMiddleware<S, T> {
     service: Arc<S>,
     signer: Arc<dyn Validate<T>>,
@@ -54,7 +92,7 @@ where
         let signer = Arc::clone(&self.signer);
 
         Box::pin(async move {
-            // Try getting from request extensions
+            // Skip validation if claims are already present (e.g. from an outer layer)
             if req.extensions().contains::<T>() {
                 return svc.call(req).await;
             };
@@ -80,10 +118,9 @@ where
                 }
             };
 
-            // store claims in request extensions
+            // Store claims in request extensions for downstream handlers
             req.extensions_mut().insert(claims);
 
-            // forward request to next service
             svc.call(req).await
         })
     }

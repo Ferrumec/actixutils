@@ -576,7 +576,7 @@ Not currently licensed. See repository for details.
 
 ---
 
-**Repository**: https://github.com/Austin-rgb/actixutils  
+**Repository**: https://github.com/Ferrumec/actixutils  
 **Language**: Rust  
 **Current Version**: 0.1.0  
 **Edition**: 2024

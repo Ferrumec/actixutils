@@ -4,7 +4,7 @@ mod fns;
 mod request_id;
 //#[cfg(feature="es")]
 mod context;
-mod idempondency;
+mod idempotency;
 mod rate_limiter;
 mod pagination;
 pub use pagination::{Pagination, PaginationMiddleware};
@@ -13,7 +13,7 @@ pub use auth::Auth;
 pub use constant_time::ResponseEqualizer;
 pub use context::{Context, GetId, ReadContext};
 pub use fns::{authority, identity};
-pub use idempondency::Idempotency;
+pub use idempotency::Idempotency;
 pub use rate_limiter::RateLimiter;
 pub use request_id::{RequestId, RequestIdStr};
 use uuid::Uuid;

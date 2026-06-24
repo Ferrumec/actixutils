@@ -82,6 +82,15 @@ pub trait GetId {
     fn get_id(&self) -> Uuid;
 }
 
+use crate::Authority;
+
+impl GetId for Authority {
+    fn get_id(&self) -> Uuid {
+        self.sub.clone()
+    }
+}
+
+
 /// Middleware factory that constructs a [`Context`] for each request.
 ///
 /// `T` must implement [`GetId`] and must be present in the request extensions when

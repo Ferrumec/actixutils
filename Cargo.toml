@@ -18,8 +18,7 @@ serde = "1.0.228"
 tokio = "1.52.3"
 tracing = "0.1.44"
 uuid = { version = "1.23.1", features = ["serde", "v4"] }
-event-stream = { path = "../event-stream", }
-#optional = true }
+event-stream = { path = "../event-stream", optional = true }
 
-#[features]
-#es = ["event-stream"]
+[features]
+es = ["event-stream"]

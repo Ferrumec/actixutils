@@ -34,7 +34,7 @@ use actix_web::{
     Error,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
 };
-use event_stream::{Event, EventMetaData, EventStream, Publishable};
+use typed_eventbus::{Event, EventMetaData, EventStream, Publishable};
 use futures_util::future::LocalBoxFuture;
 use std::future::{Ready, ready};
 use std::marker::PhantomData;

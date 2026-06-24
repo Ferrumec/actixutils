@@ -2,6 +2,9 @@
 name = "actixutils"
 version = "0.1.0"
 edition = "2024"
+description = "Reusable middleware and request utilities for Actix Web"
+license = "MIT"
+repository = "https://github.com/Ferrumec/actixutils"
 
 [dependencies]
 actix-web = "4.12.1"
@@ -18,7 +21,7 @@ serde = "1.0.228"
 tokio = "1.52.3"
 tracing = "0.1.44"
 uuid = { version = "1.23.1", features = ["serde", "v4"] }
-event-stream = { path = "../event-stream", optional = true }
+typed-eventbus = { version = "0.1.0", git = "https://github.com/Austin-rgb/event-stream", optional = true }
 
 [features]
-es = ["event-stream"]
+es = ["typed-eventbus"]

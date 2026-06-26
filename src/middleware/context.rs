@@ -91,6 +91,14 @@ impl GetId for Authority {
 }
 
 
+use crate::Identity;
+
+impl GetId for Identity {
+    fn get_id(&self) -> Uuid {
+        self.sub.clone()
+    }
+}
+
 /// Middleware factory that constructs a [`Context`] for each request.
 ///
 /// `T` must implement [`GetId`] and must be present in the request extensions when

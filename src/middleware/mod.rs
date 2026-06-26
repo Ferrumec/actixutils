@@ -12,7 +12,7 @@
 //! | [`RateLimiter<T>`] | Sliding-window per-identity rate limiting |
 //! | [`Idempotency<S>`] | Caches responses by idempotency key to prevent duplicate mutations |
 //! | [`RequestId`] / [`RequestIdStr`] | Generates a UUID per request and adds `X-Request-Id` to responses |
-//! | [`Context`] / [`ReadContext<T>`] | Builds an event-stream publishing context per request |
+//! | [`Context`] / [`ReadContext<T>`] | Builds an typed-eventbus publishing context per request |
 //! | [`Pagination`] / [`PaginationMiddleware`] | Parses `?page=&limit=` and stores params in a task-local |
 //!
 //! ## Helper functions

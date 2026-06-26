@@ -8,7 +8,7 @@
 //! - **JWT authentication** — HS256 (HMAC) and RS256 (RSA) signing and validation
 //! - **Request extractors** — [`Auth<T>`], [`Access`], and [`Session<T>`] for handler arguments
 //! - **Middleware suite** — authentication, rate limiting, idempotency, pagination, request ID
-//!   injection, constant-time response equalisation, and event-stream context propagation
+//!   injection, constant-time response equalisation, and typed-eventbus context propagation
 //! - **Role-based authorisation** — bitmask permission checks via [`Authority`]
 //!
 //! ## Quick start

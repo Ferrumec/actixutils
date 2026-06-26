@@ -6,7 +6,7 @@ actixutils provides battle-tested building blocks for secure, scalable HTTP serv
 
 - **JWT authentication** — HS256 (HMAC) and RS256 (RSA) signing and validation
 - **Request extractors** — `Auth<T>`, `Access`, and `Session<T>` for handler arguments
-- **Middleware suite** — authentication, rate limiting, idempotency, pagination, request ID injection, constant-time response equalisation, and event-stream context propagation
+- **Middleware suite** — authentication, rate limiting, idempotency, pagination, request ID injection, constant-time response equalisation, and typed-eventbus context propagation
 - **Role-based authorisation** — 128-bit bitmask permission checks via `Authority`
 
 ## Table of Contents
@@ -390,7 +390,7 @@ use std::sync::Arc;
 App::new()
     .wrap(RequestId)
     .wrap(auth_middleware)
-    .wrap(ReadContext::<Authority>::new(event_stream.clone(), "my-service".to_string()));
+    .wrap(ReadContext::<Authority>::new(typed_eventbus.clone(), "my-service".to_string()));
 
 async fn handler(req: HttpRequest) -> HttpResponse {
     if let Some(ctx) = req.extensions().get::<Context>() {
@@ -492,7 +492,7 @@ actixutils/
 | `reqwest` | 0.13.2 | HTTP client for `remote_public_key` |
 | `async-trait` | 0.1.89 | `#[async_trait]` for `IdempotencyStore` |
 | `bytes` | 1.11.1 | Response body buffering in `Idempotency` |
-| `event-stream` | path | Domain event publishing (workspace crate) |
+| `typed-eventbus` | path | Domain event publishing (workspace crate) |
 
 ---
 

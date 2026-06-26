@@ -41,13 +41,16 @@ actixutils provides battle-tested building blocks for secure, scalable HTTP serv
 
 ## Installation
 
-Add to `Cargo.toml`:
+Add with defaults features:
 
-```toml
-[dependencies]
-actixutils = { path = "../actixutils" }
+```bash
+cargo add actixutils
 ```
 
+Add with event streaming feature to support request context publishing:
+```bash
+cargo add actixutils -F es
+```
 ## Quick Start
 
 ```rust

@@ -34,13 +34,13 @@ use actix_web::{
     Error,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
 };
-use typed_eventbus::{Event, EventMetaData, EventStream, Publishable};
 use futures_util::future::LocalBoxFuture;
 use std::future::{Ready, ready};
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::task::{Context as Ctx, Poll};
+use typed_eventbus::{Event, EventMetaData, EventStream, Publishable};
 use uuid::Uuid;
 
 /// A request-scoped event publishing context.
@@ -89,7 +89,6 @@ impl GetId for Authority {
         self.sub.clone()
     }
 }
-
 
 use crate::Identity;
 

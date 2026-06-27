@@ -90,7 +90,10 @@ impl<T: Clone + 'static> FromRequest for Auth<T> {
         // 4. Validate token
         match state.validate(token) {
             Ok(identity) => ready(Ok(Auth(identity))),
-            Err(_) => ready(Err(ErrorUnauthorized("Invalid token"))),
+            Err(e) => {
+                tracing::debug!("Invalid token: {e}");
+                ready(Err(ErrorUnauthorized("Invalid token")))
+            }
         }
     }
 }

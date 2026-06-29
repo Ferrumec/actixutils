@@ -40,7 +40,7 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::task::{Context as Ctx, Poll};
-use typed_eventbus::{Event, EventMetaData, EventStream, Publishable};
+use typed_eventbus::{Event, EventStream, Publishable};
 use uuid::Uuid;
 
 /// A request-scoped event publishing context.
@@ -62,11 +62,12 @@ impl Context {
     /// Errors from the underlying [`EventStream`] are logged via `tracing::error!` but
     /// not propagated, to avoid failing a request due to a non-critical observability
     /// side-effect.
-    pub async fn publish<T: Publishable + Sync + Send>(&self, payload: T) {
-        let emd = EventMetaData::new(self.producer.clone())
+    pub async fn publish<T: Publishable + Sync + Send>(&self, payload: Event<T>) {
+        let event = payload
+            .with_producer(self.producer.clone())
             .with_trace_id(self.request_id)
             .with_user_id(self.user_id);
-        let event = Event::new(emd, payload);
+        
         if let Err(e) = event.publish(self.es.clone()).await {
             tracing::error!(error = %e, request_id = %self.request_id, "Event publishing failed");
         };

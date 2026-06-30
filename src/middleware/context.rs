@@ -53,6 +53,7 @@ pub struct Context {
     user_id: Uuid,
     es: Arc<dyn EventStream>,
     producer: String,
+    user_as_audience: bool,
 }
 
 impl Context {
@@ -63,11 +64,13 @@ impl Context {
     /// not propagated, to avoid failing a request due to a non-critical observability
     /// side-effect.
     pub async fn publish<T: Publishable + Sync + Send>(&self, payload: Event<T>) {
-        let event = payload
+        let mut event = payload
             .with_producer(self.producer.clone())
             .with_trace_id(self.request_id)
             .with_user_id(self.user_id);
-        
+        if self.user_as_audience {
+            event = event.add_audience(self.user_id);
+        }
         if let Err(e) = event.publish(self.es.clone()).await {
             tracing::error!(error = %e, request_id = %self.request_id, "Event publishing failed");
         };
@@ -106,6 +109,7 @@ impl GetId for Identity {
 pub struct ReadContext<T> {
     es: Arc<dyn EventStream>,
     name: String,
+    user_as_audience: bool,
     _marker: PhantomData<T>,
 }
 
@@ -114,6 +118,7 @@ impl<T> Clone for ReadContext<T> {
         Self {
             es: self.es.clone(),
             name: self.name.clone(),
+            user_as_audience: self.user_as_audience,
             _marker: PhantomData::<T>,
         }
     }
@@ -129,8 +134,14 @@ impl<T> ReadContext<T> {
         Self {
             es,
             name,
+            user_as_audience: false,
             _marker: PhantomData,
         }
+    }
+
+    pub fn with_user_as_audience(mut self, status: bool) -> Self {
+        self.user_as_audience = status;
+        self
     }
 }
 
@@ -178,7 +189,7 @@ where
         let es = self.state.es.clone();
         let producer = self.state.name.clone();
         let svc = self.service.clone();
-
+        let user_as_audience = self.state.user_as_audience;
         Box::pin(async move {
             let request_id = match req.extensions().get::<RequestIdStr>() {
                 Some(r) => match Uuid::parse_str(&r.0) {
@@ -208,6 +219,7 @@ where
                 user_id,
                 es,
                 producer,
+                user_as_audience,
             };
 
             req.extensions_mut().insert(ctx);

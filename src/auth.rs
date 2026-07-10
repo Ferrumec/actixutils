@@ -9,6 +9,7 @@
 use crate::Validate;
 use actix_web::HttpMessage;
 use actix_web::{
+    http::header,
     Error, FromRequest, HttpRequest,
     dev::Payload,
     error::{ErrorInternalServerError, ErrorUnauthorized},
@@ -65,30 +66,20 @@ impl<T: Clone + 'static> FromRequest for Auth<T> {
         };
 
         // 2. Get Authorization header
-        let header = match req.headers().get("Authorization") {
-            Some(h) => h,
-            None => {
-                return ready(Err(ErrorUnauthorized("Missing Authorization header")));
-            }
-        };
+        let token: Option<String> = req
+                .headers()
+                .get(header::AUTHORIZATION)
+                .and_then(|h| h.to_str().ok())
+                .map(|s| s.replace("Bearer ", ""))
+                .or_else(|| req.cookie("access_token").map(|c| c.value().to_string()));
 
-        let header_str = match header.to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                return ready(Err(ErrorUnauthorized("Invalid header format")));
-            }
-        };
+            let token = match token {
+                Some(t) => t,
+                None => return ready(Err(ErrorUnauthorized("Missing authorization header"))),
+            };
 
-        // 3. Extract Bearer token
-        let token = match header_str.strip_prefix("Bearer ") {
-            Some(t) => t,
-            None => {
-                return ready(Err(ErrorUnauthorized("Invalid auth scheme")));
-            }
-        };
-
-        // 4. Validate token
-        match state.validate(token) {
+        // 3. Validate token
+        match state.validate(&token) {
             Ok(identity) => ready(Ok(Auth(identity))),
             Err(e) => {
                 tracing::debug!("Invalid token: {e}");

@@ -17,13 +17,10 @@ type E<V> = <<<V as ViewSet>::Service as Service>::Repository as super::reposito
 /// outside this crate.
 pub trait ViewSet: Send + Sync + 'static {
     type Service: Service;
-
-    /// Base path this viewset is mounted at, e.g. "/products".
-    const PATH: &'static str;
-
+    
     fn service(&self) -> &Self::Service;
 
-    fn configure(self: std::sync::Arc<Self>, cfg: &mut web::ServiceConfig)
+    fn configure(self: std::sync::Arc<Self>, cfg: &mut web::ServiceConfig, path:&str)
     where
         Self: Sized,
     {
@@ -35,12 +32,12 @@ pub trait ViewSet: Send + Sync + 'static {
         let vs_delete = self.clone();
 
         cfg.service(
-            web::resource(Self::PATH)
+            web::resource(path)
                 .route(web::get().to(move |ctx, q| Self::handle_list(vs_list.clone(), ctx, q)))
                 .route(web::post().to(move |ctx, body| Self::handle_create(vs_post.clone(), ctx, body))),
         )
         .service(
-            web::resource(format!("{}/{{id}}", Self::PATH))
+            web::resource(format!("{}/{{id}}", path))
                 .route(web::get().to(move |ctx, id| Self::handle_retrieve(vs_get.clone(), ctx, id)))
                 .route(web::put().to(move |ctx, id, body| Self::handle_update(vs_put.clone(), ctx, id, body)))
                 .route(web::patch().to(move |ctx, id, body| Self::handle_update(vs_patch.clone(), ctx, id, body)))

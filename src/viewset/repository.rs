@@ -309,8 +309,8 @@ fn push_filters<E: Entity>(qb: &mut QueryBuilder<Postgres>, query: &QueryParams,
         qb.push_bind(value.clone());
         *has_where = true;
     }
-    if let Some(search) = &query.search {
-        if !E::SEARCHABLE.is_empty() {
+    if let Some(search) = &query.search
+        && !E::SEARCHABLE.is_empty() {
             qb.push(if *has_where { " AND (" } else { " WHERE (" });
             let mut sep = qb.separated(" OR ");
             for field in E::SEARCHABLE {
@@ -326,5 +326,4 @@ fn push_filters<E: Entity>(qb: &mut QueryBuilder<Postgres>, query: &QueryParams,
             // exact placeholder handling per field.
             let _ = pattern;
         }
-    }
 }

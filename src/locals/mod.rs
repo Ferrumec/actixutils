@@ -26,7 +26,6 @@ mod provider;
 mod rs256;
 mod session_store;
 mod signer_core;
-pub mod utils;
 
 pub mod rate_limiter;
 
@@ -41,7 +40,6 @@ pub use provider::Provider;
 pub use rs256::{RS256Signer, RS256Validator};
 pub use session_store::SessionStore;
 pub use signer_core::{Sign, Validate};
-pub use utils::remote_public_key;
 
 #[cfg(feature = "es")]
 pub use context::{Context, GetId};

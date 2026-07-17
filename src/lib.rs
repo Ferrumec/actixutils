@@ -81,5 +81,4 @@ pub use locals::{
     Authority, HS256Signer, Identity, Provider, RS256Signer, RS256Validator, SessionStore, Sign,
     Validate,
 };
-// Preserves the pre-refactor `actixutils::utils::remote_public_key` path.
-pub use locals::utils;
+

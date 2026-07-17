@@ -165,7 +165,7 @@ where
                 let id = identity.id();
                 let now = Instant::now();
 
-                let mut entry = limiter.store.entry(id).or_insert_with(VecDeque::new);
+                let mut entry = limiter.store.entry(id).or_default();
 
                 // Purge timestamps outside the current window
                 while let Some(timestamp) = entry.front() {

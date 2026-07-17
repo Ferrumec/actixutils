@@ -4236,7 +4236,3 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
-
-[[patch.unused]]
-name = "typed-eventbus"
-version = "0.2.1"

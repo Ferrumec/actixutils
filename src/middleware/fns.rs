@@ -39,7 +39,7 @@ pub async fn identity(
     next: Next<BoxBody>,
 ) -> Result<ServiceResponse<BoxBody>, Error> {
     let _user = req.extract::<Auth<Identity>>().await?;
-    Ok(next.call(req).await?)
+    next.call(req).await
 }
 
 /// Returns a `Next`-style middleware function that enforces a specific permission bit.

@@ -51,10 +51,7 @@ impl<T: Clone + 'static> FromRequest for Auth<T> {
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
         // Try getting from request extensions
-        match req.extensions().get::<T>() {
-            Some(identity) => return ready(Ok(Auth(identity.clone()))),
-            None => (),
-        };
+        if let Some(identity) = req.extensions().get::<T>() { return ready(Ok(Auth(identity.clone()))) };
 
         // 1. Get app state
         let state = match req.app_data::<Arc<dyn Validate<T>>>() {

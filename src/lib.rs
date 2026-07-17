@@ -74,11 +74,11 @@ pub mod locals;
 pub mod middleware;
 pub mod pubkey;
 
-#[cfg(feature="viewset")]
+#[cfg(feature = "viewset")]
 pub mod viewset;
 pub use extractors::{Access, Auth, Session};
 pub use locals::{
-    Authority, HS256Signer, Identity, Provider, RS256Signer, RS256Validator, Sign, SessionStore,
+    Authority, HS256Signer, Identity, Provider, RS256Signer, RS256Validator, SessionStore, Sign,
     Validate,
 };
 // Preserves the pre-refactor `actixutils::utils::remote_public_key` path.

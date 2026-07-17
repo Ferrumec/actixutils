@@ -1,7 +1,7 @@
 use super::sql::Field;
-use serde::{de::DeserializeOwned, Serialize};
-use sqlx::postgres::PgRow;
+use serde::{Serialize, de::DeserializeOwned};
 use sqlx::FromRow;
+use sqlx::postgres::PgRow;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::str::FromStr;
@@ -14,7 +14,17 @@ use std::str::FromStr;
 /// field/attribute annotations — see `examples/product.rs`.
 pub trait Entity: for<'r> FromRow<'r, PgRow> + Serialize + Send + Sync + Unpin + 'static {
     /// Primary key type (Uuid, i64, ...).
-    type Id: for<'a> sqlx::Encode<'a,sqlx::Postgres> + sqlx::Type<sqlx::Postgres>+ Display + Clone + Eq + Hash + Send + Sync + DeserializeOwned + Serialize + FromStr;
+    type Id: for<'a> sqlx::Encode<'a, sqlx::Postgres>
+        + sqlx::Type<sqlx::Postgres>
+        + Display
+        + Clone
+        + Eq
+        + Hash
+        + Send
+        + Sync
+        + DeserializeOwned
+        + Serialize
+        + FromStr;
 
     /// Payload accepted on `POST`. Also `Serialize` so the default
     /// `Repository::insert_columns` impl can read it back as a JSON object

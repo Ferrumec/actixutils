@@ -8,9 +8,9 @@
 
 mod access;
 mod auth;
-mod session;
 mod filters;
+mod session;
 pub use access::Access;
 pub use auth::Auth;
-pub use session::Session;
 pub use filters::Filters;
+pub use session::Session;

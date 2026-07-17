@@ -25,7 +25,11 @@ pub trait Service: Send + Sync {
 
     // ---- hooks (all default no-ops) -------------------------------------
 
-    async fn before_list(&self, _ctx: &RequestContext<Self::User>, _q: &QueryParams) -> ApiResult<()> {
+    async fn before_list(
+        &self,
+        _ctx: &RequestContext<Self::User>,
+        _q: &QueryParams,
+    ) -> ApiResult<()> {
         Ok(())
     }
     async fn after_list(
@@ -43,7 +47,11 @@ pub trait Service: Send + Sync {
     ) -> ApiResult<<E<Self> as Entity>::CreateDto> {
         Ok(dto)
     }
-    async fn after_create(&self, _ctx: &RequestContext<Self::User>, entity: E<Self>) -> ApiResult<E<Self>> {
+    async fn after_create(
+        &self,
+        _ctx: &RequestContext<Self::User>,
+        entity: E<Self>,
+    ) -> ApiResult<E<Self>> {
         Ok(entity)
     }
 
@@ -55,7 +63,11 @@ pub trait Service: Send + Sync {
     ) -> ApiResult<<E<Self> as Entity>::UpdateDto> {
         Ok(dto)
     }
-    async fn after_update(&self, _ctx: &RequestContext<Self::User>, entity: E<Self>) -> ApiResult<E<Self>> {
+    async fn after_update(
+        &self,
+        _ctx: &RequestContext<Self::User>,
+        entity: E<Self>,
+    ) -> ApiResult<E<Self>> {
         Ok(entity)
     }
 
@@ -66,13 +78,21 @@ pub trait Service: Send + Sync {
     ) -> ApiResult<()> {
         Ok(())
     }
-    async fn after_delete(&self, _ctx: &RequestContext<Self::User>, _id: &<E<Self> as Entity>::Id) -> ApiResult<()> {
+    async fn after_delete(
+        &self,
+        _ctx: &RequestContext<Self::User>,
+        _id: &<E<Self> as Entity>::Id,
+    ) -> ApiResult<()> {
         Ok(())
     }
 
     // ---- default CRUD, built from the hooks above ------------------------
 
-    async fn list(&self, ctx: &RequestContext<Self::User>, q: QueryParams) -> ApiResult<Page<E<Self>>> {
+    async fn list(
+        &self,
+        ctx: &RequestContext<Self::User>,
+        q: QueryParams,
+    ) -> ApiResult<Page<E<Self>>> {
         self.before_list(ctx, &q).await?;
         let (items, total) = self.repository().list(&ctx.db, &q).await?;
         let pagination = super::pagination::PaginationParams::from_query(&q);
@@ -80,7 +100,11 @@ pub trait Service: Send + Sync {
         self.after_list(ctx, page).await
     }
 
-    async fn retrieve(&self, ctx: &RequestContext<Self::User>, id: <E<Self> as Entity>::Id) -> ApiResult<E<Self>> {
+    async fn retrieve(
+        &self,
+        ctx: &RequestContext<Self::User>,
+        id: <E<Self> as Entity>::Id,
+    ) -> ApiResult<E<Self>> {
         self.repository().retrieve(&ctx.db, &id).await
     }
 
@@ -105,7 +129,11 @@ pub trait Service: Send + Sync {
         self.after_update(ctx, entity).await
     }
 
-    async fn delete(&self, ctx: &RequestContext<Self::User>, id: <E<Self> as Entity>::Id) -> ApiResult<()> {
+    async fn delete(
+        &self,
+        ctx: &RequestContext<Self::User>,
+        id: <E<Self> as Entity>::Id,
+    ) -> ApiResult<()> {
         self.before_delete(ctx, &id).await?;
         self.repository().delete(&ctx.db, &id).await?;
         self.after_delete(ctx, &id).await

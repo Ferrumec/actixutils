@@ -64,7 +64,10 @@ impl SqlValue {
         }
         match sql_type {
             SqlType::Text => SqlValue::Text(
-                value.as_str().map(str::to_string).unwrap_or_else(|| value.to_string()),
+                value
+                    .as_str()
+                    .map(str::to_string)
+                    .unwrap_or_else(|| value.to_string()),
             ),
             SqlType::Int4 => SqlValue::Int4(value.as_i64().unwrap_or_default() as i32),
             SqlType::Int8 => SqlValue::Int8(value.as_i64().unwrap_or_default()),

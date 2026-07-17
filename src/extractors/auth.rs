@@ -9,10 +9,10 @@
 use crate::locals::Validate;
 use actix_web::HttpMessage;
 use actix_web::{
-    http::header,
     Error, FromRequest, HttpRequest,
     dev::Payload,
     error::{ErrorInternalServerError, ErrorUnauthorized},
+    http::header,
 };
 use futures_util::future::{Ready, ready};
 use std::sync::Arc;
@@ -51,7 +51,9 @@ impl<T: Clone + 'static> FromRequest for Auth<T> {
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
         // Try getting from request extensions
-        if let Some(identity) = req.extensions().get::<T>() { return ready(Ok(Auth(identity.clone()))) };
+        if let Some(identity) = req.extensions().get::<T>() {
+            return ready(Ok(Auth(identity.clone())));
+        };
 
         // 1. Get app state
         let state = match req.app_data::<Arc<dyn Validate<T>>>() {
@@ -65,16 +67,16 @@ impl<T: Clone + 'static> FromRequest for Auth<T> {
 
         // 2. Get Authorization header
         let token: Option<String> = req
-                .headers()
-                .get(header::AUTHORIZATION)
-                .and_then(|h| h.to_str().ok())
-                .map(|s| s.replace("Bearer ", ""))
-                .or_else(|| req.cookie("access_token").map(|c| c.value().to_string()));
+            .headers()
+            .get(header::AUTHORIZATION)
+            .and_then(|h| h.to_str().ok())
+            .map(|s| s.replace("Bearer ", ""))
+            .or_else(|| req.cookie("access_token").map(|c| c.value().to_string()));
 
-            let token = match token {
-                Some(t) => t,
-                None => return ready(Err(ErrorUnauthorized("Missing authorization header"))),
-            };
+        let token = match token {
+            Some(t) => t,
+            None => return ready(Err(ErrorUnauthorized("Missing authorization header"))),
+        };
 
         // 3. Validate token
         match state.validate(&token) {

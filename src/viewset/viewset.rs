@@ -3,10 +3,11 @@ use super::entity::Entity;
 use super::error::ApiError;
 use super::pagination::QueryParams;
 use super::service::Service;
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpResponse, web};
 use std::str::FromStr;
 
-type E<V> = <<<V as ViewSet>::Service as Service>::Repository as super::repository::Repository>::Entity;
+type E<V> =
+    <<<V as ViewSet>::Service as Service>::Repository as super::repository::Repository>::Entity;
 
 /// HTTP layer: extracts requests, calls the Service, translates results
 /// into responses. Nothing here touches the database directly.
@@ -17,10 +18,10 @@ type E<V> = <<<V as ViewSet>::Service as Service>::Repository as super::reposito
 /// outside this crate.
 pub trait ViewSet: Send + Sync + 'static {
     type Service: Service;
-    
+
     fn service(&self) -> &Self::Service;
 
-    fn configure(self: std::sync::Arc<Self>, cfg: &mut web::ServiceConfig, path:&str)
+    fn configure(self: std::sync::Arc<Self>, cfg: &mut web::ServiceConfig, path: &str)
     where
         Self: Sized,
     {
@@ -34,14 +35,28 @@ pub trait ViewSet: Send + Sync + 'static {
         cfg.service(
             web::resource(path)
                 .route(web::get().to(move |ctx, q| Self::handle_list(vs_list.clone(), ctx, q)))
-                .route(web::post().to(move |ctx, body| Self::handle_create(vs_post.clone(), ctx, body))),
+                .route(
+                    web::post()
+                        .to(move |ctx, body| Self::handle_create(vs_post.clone(), ctx, body)),
+                ),
         )
         .service(
             web::resource(format!("{}/{{id}}", path))
                 .route(web::get().to(move |ctx, id| Self::handle_retrieve(vs_get.clone(), ctx, id)))
-                .route(web::put().to(move |ctx, id, body| Self::handle_update(vs_put.clone(), ctx, id, body)))
-                .route(web::patch().to(move |ctx, id, body| Self::handle_update(vs_patch.clone(), ctx, id, body)))
-                .route(web::delete().to(move |ctx, id| Self::handle_delete(vs_delete.clone(), ctx, id))),
+                .route(
+                    web::put().to(move |ctx, id, body| {
+                        Self::handle_update(vs_put.clone(), ctx, id, body)
+                    }),
+                )
+                .route(
+                    web::patch().to(move |ctx, id, body| {
+                        Self::handle_update(vs_patch.clone(), ctx, id, body)
+                    }),
+                )
+                .route(
+                    web::delete()
+                        .to(move |ctx, id| Self::handle_delete(vs_delete.clone(), ctx, id)),
+                ),
         );
     }
 

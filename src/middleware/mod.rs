@@ -27,7 +27,7 @@ mod auth;
 mod constant_time;
 mod fns;
 mod request_id;
-
+mod attach_local;
 #[cfg(feature = "es")]
 mod context;
 mod idempotency;
@@ -43,3 +43,4 @@ pub use fns::{authority, identity};
 pub use idempotency::Idempotency;
 pub use rate_limiter::RateLimiter;
 pub use request_id::{RequestId, RequestIdStr};
+pub use attach_local::{AttachLocal, SetLocal};

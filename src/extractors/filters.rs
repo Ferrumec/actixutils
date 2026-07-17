@@ -1,8 +1,4 @@
-use actix_web::{
-    dev::Payload,
-    error::ErrorBadRequest,
-    web, Error, FromRequest, HttpRequest,
-};
+use actix_web::{Error, FromRequest, HttpRequest, dev::Payload, error::ErrorBadRequest, web};
 use futures_util::future::LocalBoxFuture;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};

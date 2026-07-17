@@ -43,6 +43,20 @@
 //!
 //! ## Crate layout
 //!
+//! The crate is organised into three top-level modules, split by whether an item
+//! depends on `actix-web`:
+//!
+//! | Module | Contains |
+//! |---|---|
+//! | [`extractors`] | Types implementing [`FromRequest`](actix_web::FromRequest): [`Auth<T>`], [`Access`], [`Session<T>`] |
+//! | [`middleware`] | Types implementing [`Transform`](actix_web::dev::Transform): the full middleware suite |
+//! | [`locals`] | Everything framework-agnostic: claim structs, signing traits, store traits, and task-local state |
+//!
+//! The most commonly used items from `extractors` and `locals` are also re-exported
+//! at the crate root for convenience (as shown in the quick-start example above), so
+//! existing code that imports `actixutils::Auth`, `actixutils::Identity`, etc.
+//! continues to work unchanged.
+//!
 //! | Module / export | What it provides |
 //! |---|---|
 //! | [`Auth<T>`] | Extractor that validates a Bearer token and yields `T` |
@@ -55,22 +69,17 @@
 //! | [`middleware`] | Full middleware suite (see module docs) |
 //! | `pubkey::configure` | Actix route that serves the public key at `/.well-known/public-key.pem` |
 
-mod headers;
-pub mod pubkey;
-pub mod utils;
-pub use headers::Access;
+pub mod extractors;
+pub mod locals;
 pub mod middleware;
-mod provider;
-pub use provider::Provider;
-mod auth;
-mod common;
-mod hs256;
-mod rs256;
-mod session;
-mod signer_core;
-pub use auth::Auth;
-pub use common::{Authority, Identity};
-pub use hs256::HS256Signer;
-pub use rs256::{RS256Signer, RS256Validator};
-pub use session::{Session, SessionStore};
-pub use signer_core::{Sign, Validate};
+pub mod pubkey;
+
+#[cfg(feature="viewset")]
+pub mod viewset;
+pub use extractors::{Access, Auth, Session};
+pub use locals::{
+    Authority, HS256Signer, Identity, Provider, RS256Signer, RS256Validator, Sign, SessionStore,
+    Validate,
+};
+// Preserves the pre-refactor `actixutils::utils::remote_public_key` path.
+pub use locals::utils;

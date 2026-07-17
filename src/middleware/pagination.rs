@@ -1,16 +1,18 @@
 //! Task-local pagination parameter extraction middleware.
 //!
 //! [`PaginationMiddleware`] parses the `?page=<u32>&limit=<u32>` query parameters
-//! from each request and stores the result in a Tokio task-local variable.
-//! Repository functions and handlers can then read the current pagination state
-//! anywhere in the call stack via [`Pagination::get`] without needing to thread
-//! the parameters through every function signature.
+//! from each request and stores the result in a Tokio task-local variable (see
+//! [`locals::pagination`](crate::locals::pagination)). Repository functions and
+//! handlers can then read the current pagination state anywhere in the call stack
+//! via [`Pagination::get`] without needing to thread the parameters through every
+//! function signature.
 //!
 //! Missing parameters default to `page = 0` and `limit = 100`.
 //!
 //! # Example
 //! ```rust,no_run
-//! use actixutils::middleware::{Pagination, PaginationMiddleware};
+//! use actixutils::middleware::PaginationMiddleware;
+//! use actixutils::locals::Pagination;
 //! use actix_web::{web, App, HttpResponse};
 //!
 //! async fn list_items() -> HttpResponse {
@@ -26,6 +28,8 @@
 //! );
 //! ```
 
+pub use crate::locals::Pagination;
+use crate::locals::pagination::PAGINATION;
 use actix_web::web::Query;
 use actix_web::{
     Error,
@@ -37,42 +41,6 @@ use std::{
     future::{Ready, ready},
     rc::Rc,
 };
-use tokio::task_local;
-
-task_local! {
-    static PAGINATION: Pagination;
-}
-
-/// A snapshot of the parsed pagination query parameters.
-///
-/// Read anywhere in the request's async call stack via [`Pagination::get`].
-#[derive(Clone, Copy)]
-pub struct Pagination {
-    /// Zero-based page number (default: `0`).
-    pub page: u32,
-    /// Maximum number of items per page (default: `100`).
-    pub limit: u32,
-}
-
-impl Default for Pagination {
-    fn default() -> Pagination {
-        Pagination {
-            page: 0,
-            limit: 100,
-        }
-    }
-}
-
-impl Pagination {
-    /// Retrieve the pagination parameters set by [`PaginationMiddleware`] for the
-    /// current request.
-    ///
-    /// Falls back to [`Pagination::default`] if called outside a request context or
-    /// before the middleware has run.
-    pub fn get() -> Pagination {
-        PAGINATION.try_with(|p| *p).unwrap_or_default()
-    }
-}
 
 /// Deserialisation helper that accepts missing fields gracefully.
 #[derive(Deserialize)]

@@ -1,10 +1,10 @@
 //! Event-stream publishing context middleware.
 //!
-//! [`ReadContext<T>`] builds a per-request [`Context`] value that bundles the
-//! request ID, the authenticated user's UUID, an [`EventStream`] handle, and a
-//! producer name. Handlers and services can then call [`Context::publish`] to emit
-//! domain events without needing to carry these dependencies in their function
-//! signatures.
+//! [`ReadContext<T>`] builds a per-request [`Context`](crate::locals::context::Context)
+//! value that bundles the request ID, the authenticated user's UUID, an
+//! [`EventStream`] handle, and a producer name. Handlers and services can then call
+//! [`Context::publish`](crate::locals::context::Context::publish) to emit domain
+//! events without needing to carry these dependencies in their function signatures.
 //!
 //! This middleware depends on two upstream middleware being applied first:
 //! 1. [`RequestId`](super::RequestId) — must have stored a [`RequestIdStr`] in the
@@ -14,7 +14,7 @@
 //!
 //! # Example
 //! ```rust,no_run
-//! use actixutils::{Authority};
+//! use actixutils::locals::Authority;
 //! use actixutils::middleware::{RequestId, ReadContext, Context};
 //! use actix_web::{web, App, HttpResponse, HttpMessage};
 //! use std::sync::Arc;
@@ -27,6 +27,7 @@
 //! }
 //! ```
 
+pub use crate::locals::context::{Context, GetId};
 use crate::middleware::RequestIdStr;
 use actix_web::HttpMessage;
 use actix_web::error::ErrorInternalServerError;
@@ -40,67 +41,8 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::task::{Context as Ctx, Poll};
-use typed_eventbus::{Event, EventStream, Publishable};
+use typed_eventbus::EventStream;
 use uuid::Uuid;
-
-/// A request-scoped event publishing context.
-///
-/// `Context` is inserted into the request extensions by [`ReadContext<T>`]. Handlers
-/// retrieve it via `req.extensions().get::<Context>()` and call [`publish`](Self::publish).
-#[derive(Clone)]
-pub struct Context {
-    request_id: Uuid,
-    user_id: Uuid,
-    es: Arc<dyn EventStream>,
-    producer: String,
-    user_as_audience: bool,
-}
-
-impl Context {
-    /// Publish a domain event, attaching the current request ID and user ID as trace
-    /// metadata.
-    ///
-    /// Errors from the underlying [`EventStream`] are logged via `tracing::error!` but
-    /// not propagated, to avoid failing a request due to a non-critical observability
-    /// side-effect.
-    pub async fn publish<T: Publishable + Sync + Send>(&self, payload: Event<T>) {
-        let mut event = payload
-            .with_producer(self.producer.clone())
-            .with_trace_id(self.request_id)
-            .with_user_id(self.user_id);
-        if self.user_as_audience {
-            event = event.add_audience(self.user_id);
-        }
-        if let Err(e) = event.publish(self.es.clone()).await {
-            tracing::error!(error = %e, request_id = %self.request_id, "Event publishing failed");
-        };
-    }
-}
-
-/// Extracts the authenticated user's UUID from any type that implements `GetId`.
-///
-/// Implement this for your identity or authority type so that [`ReadContext`] can
-/// derive the `user_id` field of the resulting [`Context`].
-pub trait GetId {
-    /// Return the UUID that identifies the authenticated user.
-    fn get_id(&self) -> Uuid;
-}
-
-use crate::Authority;
-
-impl GetId for Authority {
-    fn get_id(&self) -> Uuid {
-        self.sub.clone()
-    }
-}
-
-use crate::Identity;
-
-impl GetId for Identity {
-    fn get_id(&self) -> Uuid {
-        self.sub.clone()
-    }
-}
 
 /// Middleware factory that constructs a [`Context`] for each request.
 ///

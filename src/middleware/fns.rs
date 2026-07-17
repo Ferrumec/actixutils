@@ -18,8 +18,8 @@
 //! # async fn super_handler() -> actix_web::HttpResponse { actix_web::HttpResponse::Ok().finish() }
 //! ```
 
-use crate::auth::Auth;
-use crate::{Authority, Identity};
+use crate::extractors::Auth;
+use crate::locals::{Authority, Identity};
 
 use actix_web::{
     Error, HttpResponse,

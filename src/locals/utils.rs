@@ -15,7 +15,7 @@ use std::env;
 ///
 /// # Example
 /// ```rust,no_run
-/// use actixutils::utils::remote_public_key;
+/// use actixutils::locals::remote_public_key;
 ///
 /// #[tokio::main]
 /// async fn main() {

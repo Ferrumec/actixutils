@@ -6,7 +6,7 @@
 //! reading the `Authorization: Bearer <token>` header and validating it via the
 //! `Arc<dyn Validate<T>>` registered in app data.
 
-use crate::Validate;
+use crate::locals::Validate;
 use actix_web::HttpMessage;
 use actix_web::{
     http::header,
@@ -35,7 +35,8 @@ use std::sync::Arc;
 ///
 /// # Example
 /// ```rust,no_run
-/// use actixutils::{Auth, Identity};
+/// use actixutils::extractors::Auth;
+/// use actixutils::locals::Identity;
 /// use actix_web::HttpResponse;
 ///
 /// async fn protected(auth: Auth<Identity>) -> HttpResponse {

@@ -1,6 +1,6 @@
 //! `Access` — a low-level request extractor that yields the raw Bearer token.
 //!
-//! Unlike [`Auth<T>`](crate::Auth), `Access` does **not** validate the token
+//! Unlike [`Auth<T>`](crate::extractors::Auth), `Access` does **not** validate the token
 //! automatically. It simply extracts the token string from the
 //! `Authorization: Bearer <token>` header or the `access_token` cookie, leaving
 //! validation to the caller via [`Access::validate_hmac`] or [`Access::validate_rsa`].
@@ -8,7 +8,7 @@
 //! This is useful when a handler needs to inspect the claims before deciding which
 //! algorithm or audience to use for validation.
 
-use crate::common::Identity;
+use crate::locals::Identity;
 use actix_web::{Error, FromRequest, HttpRequest, error::ErrorUnauthorized, http::header};
 use anyhow::Result;
 use futures_util::future::{Ready, ready};

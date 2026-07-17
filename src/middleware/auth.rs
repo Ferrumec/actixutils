@@ -9,12 +9,12 @@
 //!
 //! # Example
 //! ```rust,no_run
-//! use actixutils::{HS256Signer, Identity};
+//! use actixutils::locals::{HS256Signer, Identity};
 //! use actixutils::middleware::Auth;
 //! use actix_web::{web, App};
 //! use std::sync::Arc;
 //!
-//! let signer: Arc<dyn actixutils::Validate<Identity>> =
+//! let signer: Arc<dyn actixutils::locals::Validate<Identity>> =
 //!     Arc::new(HS256Signer::new("svc".to_string(), "secret".to_string()));
 //!
 //! App::new().service(
@@ -25,7 +25,7 @@
 //! # async fn me_handler() -> actix_web::HttpResponse { actix_web::HttpResponse::Ok().finish() }
 //! ```
 
-use crate::Validate;
+use crate::locals::Validate;
 use actix_web::{
     Error, HttpMessage,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},

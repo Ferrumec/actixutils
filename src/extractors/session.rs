@@ -1,14 +1,15 @@
 //! Cookie-based session extraction for Actix-web handlers.
 //!
 //! [`Session<T>`] reads the `session_id` cookie from the incoming request and
-//! delegates the look-up to a [`SessionStore<T>`] registered in the application
-//! state. The session type `T` is fully generic — it can be a struct, an enum, or
-//! any other `'static` value your application stores.
+//! delegates the look-up to a [`SessionStore<T>`](crate::locals::SessionStore) registered
+//! in the application state. The session type `T` is fully generic — it can be a
+//! struct, an enum, or any other `'static` value your application stores.
 //!
 //! # Setup
 //!
 //! ```rust,no_run
-//! use actixutils::{Session, SessionStore};
+//! use actixutils::extractors::Session;
+//! use actixutils::locals::SessionStore;
 //! use actix_web::{web, App, HttpResponse};
 //! use std::sync::Arc;
 //!
@@ -33,25 +34,13 @@
 
 use std::sync::Arc;
 
+use crate::locals::SessionStore;
 use actix_web::{
     Error, FromRequest, HttpRequest,
     dev::Payload,
     error::{ErrorInternalServerError, ErrorUnauthorized},
 };
 use futures_util::future::{Ready, ready};
-
-/// Backing store for [`Session<T>`] extraction.
-///
-/// Implement this trait on your own store type (e.g. a DashMap, Redis client
-/// wrapper, or database-backed store) and register it with Actix-web's app data
-/// as `Arc<dyn SessionStore<T>>`.
-pub trait SessionStore<T>: Send + Sync {
-    /// Look up a session by its ID string.
-    ///
-    /// Returns `Some(T)` if a valid, unexpired session exists, or `None` if the
-    /// session is unknown or has expired.
-    fn get(&self, session_id: &str) -> Option<T>;
-}
 
 /// An extractor that resolves the `session_id` cookie to a typed session value.
 ///

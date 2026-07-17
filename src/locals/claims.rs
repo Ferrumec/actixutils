@@ -87,7 +87,7 @@ impl Authority {
     ///
     /// # Example
     /// ```rust
-    /// # use actixutils::Authority;
+    /// # use actixutils::locals::Authority;
     /// # use uuid::Uuid;
     /// let auth = Authority::new(Uuid::new_v4(), 0b101, Uuid::new_v4(), vec![]);
     /// assert!(auth.check(0));   // bit 0 is set

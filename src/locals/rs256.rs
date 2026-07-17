@@ -1,17 +1,17 @@
 //! RSA-SHA-256 (`RS256`) JWT signer and validator.
 //!
-//! Unlike the symmetric [`HS256Signer`](crate::HS256Signer), the RSA approach separates
-//! signing from verification:
+//! Unlike the symmetric [`HS256Signer`](crate::locals::HS256Signer), the RSA approach
+//! separates signing from verification:
 //!
 //! * [`RS256Signer`]    — holds the **private key** and signs tokens. Typically used by an
 //!   auth service.
 //! * [`RS256Validator`] — holds the **public key** and verifies tokens. Used by downstream
 //!   services that trust the auth service's signature.
 //!
-//! Both types implement the corresponding [`Sign<T>`](crate::Sign) /
-//! [`Validate<T>`](crate::Validate) traits.
+//! Both types implement the corresponding [`Sign<T>`](crate::locals::Sign) /
+//! [`Validate<T>`](crate::locals::Validate) traits.
 
-use crate::signer_core::{Sign, Validate};
+use super::signer_core::{Sign, Validate};
 use anyhow::Result;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Serialize, de::DeserializeOwned};
@@ -20,7 +20,7 @@ use serde::{Serialize, de::DeserializeOwned};
 ///
 /// # Example
 /// ```rust,no_run
-/// use actixutils::{RS256Signer, Sign, Identity};
+/// use actixutils::locals::{RS256Signer, Sign, Identity};
 /// use uuid::Uuid;
 ///
 /// let private_key = std::fs::read_to_string("private.pem").unwrap();
@@ -38,12 +38,12 @@ pub struct RS256Signer {
 /// An RSA-based JWT validator that uses a PEM-encoded public key.
 ///
 /// Wrap in an [`Arc`](std::sync::Arc) and register as app data so that
-/// [`Auth<T>`](crate::Auth) can use it to verify tokens produced by a remote
+/// [`Auth<T>`](crate::extractors::Auth) can use it to verify tokens produced by a remote
 /// [`RS256Signer`].
 ///
 /// # Example
 /// ```rust,no_run
-/// use actixutils::{RS256Validator, Validate, Identity};
+/// use actixutils::locals::{RS256Validator, Validate, Identity};
 ///
 /// let public_key = std::fs::read_to_string("public.pem").unwrap();
 /// let validator = RS256Validator::new(public_key, "my-service".to_string());

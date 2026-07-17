@@ -1,10 +1,10 @@
 //! HMAC-SHA-256 (`HS256`) JWT signer and validator.
 //!
-//! [`HS256Signer`] implements both [`Sign<T>`](crate::Sign) and [`Validate<T>`](crate::Validate),
-//! making it a self-contained symmetric-key token authority suitable for services that
-//! both issue and verify their own tokens.
+//! [`HS256Signer`] implements both [`Sign<T>`](crate::locals::Sign) and
+//! [`Validate<T>`](crate::locals::Validate), making it a self-contained symmetric-key
+//! token authority suitable for services that both issue and verify their own tokens.
 
-use crate::{Sign, Validate};
+use super::signer_core::{Sign, Validate};
 use anyhow::Result;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Serialize, de::DeserializeOwned};
@@ -13,11 +13,11 @@ use serde::{Serialize, de::DeserializeOwned};
 ///
 /// Wrap in an [`Arc`](std::sync::Arc) and register with
 /// [`web::Data::from`](actix_web::web::Data::from) to make it available to
-/// [`Auth<T>`](crate::Auth) and [`middleware::Auth`](crate::middleware).
+/// [`Auth<T>`](crate::extractors::Auth) and [`middleware::Auth`](crate::middleware).
 ///
 /// # Example
 /// ```rust,no_run
-/// use actixutils::{HS256Signer, Identity, Sign, Validate};
+/// use actixutils::locals::{HS256Signer, Identity, Sign, Validate};
 /// use uuid::Uuid;
 ///
 /// let signer = HS256Signer::new("my-service".to_string(), "secret".to_string());

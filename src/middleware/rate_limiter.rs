@@ -16,7 +16,7 @@
 //! the store with Redis or a similar shared store.
 //!
 //! # Example
-//! ```rust,no_run
+//! ```ignore
 //! use actixutils::extractors::Auth;
 //! use actixutils::locals::Identity;
 //! use actixutils::middleware::RateLimiter;

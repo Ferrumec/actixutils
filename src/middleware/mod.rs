@@ -33,10 +33,13 @@ mod context;
 mod idempotency;
 mod pagination;
 mod rate_limiter;
+mod session;
+#[cfg(test)]
+mod test_session;
 pub use auth::Auth;
 pub use constant_time::ResponseEqualizer;
 pub use pagination::{Pagination, PaginationMiddleware};
-
+pub use session::{Session,SessionMiddleware};
 #[cfg(feature = "es")]
 pub use context::{Context, GetId, ReadContext};
 pub use fns::{authority, identity};

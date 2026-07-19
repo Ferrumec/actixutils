@@ -1,12 +1,10 @@
-use std::future::{ready, Ready};
+use std::future::{Ready, ready};
 use std::marker::PhantomData;
 use std::rc::Rc; // use Rc instead of Clone
 
-use actix_web::dev::{
-    forward_ready, Service, ServiceRequest, ServiceResponse, Transform,
-};
-use actix_web::error::Error;
 use actix_web::FromRequest;
+use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform, forward_ready};
+use actix_web::error::Error;
 use futures_util::future::LocalBoxFuture;
 
 pub trait SetLocal: Sized {
@@ -17,8 +15,16 @@ pub trait SetLocal: Sized {
 
 pub struct AttachLocal<T>(PhantomData<T>);
 
+impl<T> Default for AttachLocal<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> AttachLocal<T> {
-    pub fn new() -> Self { Self(PhantomData) }
+    pub fn new() -> Self {
+        Self(PhantomData)
+    }
 }
 
 impl<S, B, T> Transform<S, ServiceRequest> for AttachLocal<T>
@@ -35,9 +41,9 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ready(Ok(AttachLocalMiddleware { 
+        ready(Ok(AttachLocalMiddleware {
             service: Rc::new(service), // wrap in Rc
-            _marker: PhantomData 
+            _marker: PhantomData,
         }))
     }
 }
@@ -65,13 +71,15 @@ where
         Box::pin(async move {
             // Unpack request
             let (req, mut payload) = req.into_parts();
-            
+
             // extract. from_request consumes &mut Payload
-            let value = T::from_request(&req, &mut payload).await.map_err(Into::into)?;
-            
+            let value = T::from_request(&req, &mut payload)
+                .await
+                .map_err(Into::into)?;
+
             // rebuild request with the same payload we just used
             let req = ServiceRequest::from_parts(req, payload);
-            
+
             // scope it
             value.scope(service.call(req)).await
         })

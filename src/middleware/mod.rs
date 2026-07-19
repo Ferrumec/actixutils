@@ -23,27 +23,27 @@
 //! [`wrap_fn`](actix_web::web::ServiceConfig)) that validate the request against the
 //! [`Identity`](crate::locals::Identity) and [`Authority`](crate::locals::Authority) types respectively.
 
+mod attach_local;
 mod auth;
 mod constant_time;
-mod fns;
-mod request_id;
-mod attach_local;
 #[cfg(feature = "es")]
 mod context;
+mod fns;
 mod idempotency;
 mod pagination;
 mod rate_limiter;
+mod request_id;
 mod session;
 #[cfg(test)]
 mod test_session;
+pub use attach_local::{AttachLocal, SetLocal};
 pub use auth::Auth;
 pub use constant_time::ResponseEqualizer;
-pub use pagination::{Pagination, PaginationMiddleware};
-pub use session::{Session,SessionMiddleware};
 #[cfg(feature = "es")]
 pub use context::{Context, GetId, ReadContext};
 pub use fns::{authority, identity};
 pub use idempotency::Idempotency;
+pub use pagination::{Pagination, PaginationMiddleware};
 pub use rate_limiter::RateLimiter;
 pub use request_id::{RequestId, RequestIdStr};
-pub use attach_local::{AttachLocal, SetLocal};
+pub use session::{Session, SessionMiddleware};

@@ -1,15 +1,15 @@
 use std::{
-    future::{ready, Ready},
+    future::{Ready, ready},
     rc::Rc,
     sync::Arc,
     task::{Context, Poll},
 };
 
 use actix_web::{
+    Error, FromRequest, HttpMessage, HttpRequest,
     body::MessageBody,
     dev::{Payload, Service, ServiceRequest, ServiceResponse, Transform},
     error,
-    Error, FromRequest, HttpMessage, HttpRequest,
 };
 use async_trait::async_trait;
 use futures_util::future::LocalBoxFuture;
@@ -25,21 +25,11 @@ pub type SharedSession<T> = Arc<RwLock<T>>;
 pub trait SessionStore: Send + Sync + 'static {
     type Session: Send + Sync + Clone + Default + 'static;
 
-    async fn load(
-        &self,
-        session_id: &str,
-    ) -> Result<Option<Self::Session>, Error>;
+    async fn load(&self, session_id: &str) -> Result<Option<Self::Session>, Error>;
 
-    async fn save(
-        &self,
-        session_id: &str,
-        session: &Self::Session,
-    ) -> Result<(), Error>;
+    async fn save(&self, session_id: &str, session: &Self::Session) -> Result<(), Error>;
 
-    async fn delete(
-        &self,
-        session_id: &str,
-    ) -> Result<(), Error>;
+    async fn delete(&self, session_id: &str) -> Result<(), Error>;
 }
 
 /// ===========================
@@ -52,10 +42,7 @@ impl<T: Send + Sync + 'static> FromRequest for Session<T> {
     type Error = Error;
     type Future = Ready<Result<Self, Error>>;
 
-    fn from_request(
-        req: &HttpRequest,
-        _: &mut Payload,
-    ) -> Self::Future {
+    fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
         match req.extensions().get::<SharedSession<T>>() {
             Some(session) => ready(Ok(Session(session.clone()))),
             None => ready(Err(error::ErrorUnauthorized("No session"))),
@@ -101,7 +88,7 @@ where
 
     fn new_transform(&self, service: S) -> Self::Future {
         ready(Ok(SessionMiddlewareService {
-            service:service.into(),
+            service: service.into(),
             store: self.store.clone(),
             cookie_name: self.cookie_name.clone(),
         }))
@@ -125,30 +112,19 @@ where
     type Error = Error;
     type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
 
-    fn poll_ready(
-        &self,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.service.poll_ready(cx)
     }
 
-    fn call(
-        &self,
-        req: ServiceRequest,
-    ) -> Self::Future {
+    fn call(&self, req: ServiceRequest) -> Self::Future {
         let store = self.store.clone();
         let cookie_name = self.cookie_name.clone();
-let service = self.service.clone();
+        let service = self.service.clone();
         Box::pin(async move {
-            let session_id = req
-                .cookie(&cookie_name)
-                .map(|c| c.value().to_owned());
+            let session_id = req.cookie(&cookie_name).map(|c| c.value().to_owned());
 
             let session = if let Some(ref id) = session_id {
-                store
-                    .load(id)
-                    .await?
-                    .map(|s| Arc::new(RwLock::new(s)))
+                store.load(id).await?.map(|s| Arc::new(RwLock::new(s)))
             } else {
                 None
             };

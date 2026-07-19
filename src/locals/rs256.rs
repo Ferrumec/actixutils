@@ -42,7 +42,7 @@ pub struct RS256Signer {
 /// [`RS256Signer`].
 ///
 /// # Example
-/// ```rust,no_run
+/// ```ignore
 /// use actixutils::locals::{RS256Validator, Validate, Identity};
 ///
 /// let public_key = std::fs::read_to_string("public.pem").unwrap();

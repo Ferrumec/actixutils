@@ -95,7 +95,7 @@ impl Authority {
     /// assert!(auth.check(2));   // bit 2 is set
     /// ```
     pub fn check(&self, perm_id: u16) -> bool {
-        let perm_value = 2 << perm_id;
+        let perm_value = 1 << perm_id;
         self.role & perm_value == perm_value
     }
 }

@@ -54,11 +54,11 @@ impl Identity {
     ///
     /// `iat` and `exp` are derived from the current UTC wall clock.
     pub fn new(sub: Uuid, aud: Vec<String>) -> Self {
-        let iat = Utc::now().timestamp_millis() as usize;
+        let iat = Utc::now().timestamp() as usize;
         Self {
             aud,
             iat,
-            exp: iat + (1000 * 500),
+            exp: iat + 500,
             sub,
         }
     }
@@ -69,11 +69,11 @@ impl Authority {
     ///
     /// `iat` and `exp` are derived from the current UTC wall clock.
     pub fn new(sub: Uuid, role: u128, rcpt: Uuid, aud: Vec<String>) -> Self {
-        let iat = Utc::now().timestamp_millis() as usize;
+        let iat = Utc::now().timestamp() as usize;
         Self {
             aud,
             iat,
-            exp: iat + (1000 * 500),
+            exp: iat + 500,
             sub,
             role,
             rcpt,

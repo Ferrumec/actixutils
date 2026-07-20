@@ -14,6 +14,7 @@ use actix_web::{
 use async_trait::async_trait;
 use futures_util::future::LocalBoxFuture;
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 pub type SharedSession<T> = Arc<RwLock<T>>;
 
@@ -25,11 +26,11 @@ pub type SharedSession<T> = Arc<RwLock<T>>;
 pub trait SessionStore: Send + Sync + 'static {
     type Session: Send + Sync + Clone + Default + 'static;
 
-    async fn load(&self, session_id: &str) -> Result<Option<Self::Session>, Error>;
+    async fn load(&self, session_id: &Uuid) -> Result<Option<Self::Session>, Error>;
 
-    async fn save(&self, session_id: &str, session: &Self::Session) -> Result<(), Error>;
+    async fn save(&self, session_id: &Uuid, session: &Self::Session) -> Result<(), Error>;
 
-    async fn delete(&self, session_id: &str) -> Result<(), Error>;
+    async fn delete(&self, session_id: &Uuid) -> Result<(), Error>;
 }
 
 /// ===========================
@@ -45,7 +46,10 @@ impl<T: Send + Sync + 'static> FromRequest for Session<T> {
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
         match req.extensions().get::<SharedSession<T>>() {
             Some(session) => ready(Ok(Session(session.clone()))),
-            None => ready(Err(error::ErrorUnauthorized("No session"))),
+            None => {
+                tracing::error!("No session in request. This is probably because SessionMiddleware is not wrapped on this endpoint");
+                ready(Err(error::ErrorUnauthorized("No session")))
+            }
         }
     }
 }
@@ -121,23 +125,49 @@ where
         let cookie_name = self.cookie_name.clone();
         let service = self.service.clone();
         Box::pin(async move {
-            let session_id = req.cookie(&cookie_name).map(|c| c.value().to_owned());
+            let (session_id, session, new_session) = match req.cookie(&cookie_name) {
+                Some(cookie) => {
+                    let id = match Uuid::parse_str(&cookie.value().to_owned()){
+                        Ok(id) =>id,
+                        Err(_) =>Uuid::new_v4()
+                    };
 
-            let session = if let Some(ref id) = session_id {
-                store.load(id).await?.map(|s| Arc::new(RwLock::new(s)))
-            } else {
-                None
+                    let session = store.load(&id).await?.unwrap_or_default();
+
+                    (id, Arc::new(RwLock::new(session)), false)
+                }
+                None => {
+                    let id = Uuid::new_v4();
+                    let session = Arc::new(RwLock::new(Store::Session::default()));
+
+                    // Persist immediately so the ID is valid.
+                    {
+                        let s = session.read().await;
+                        store.save(&id, &*s).await?;
+                    }
+
+                    (id, session, true)
+                }
             };
 
-            if let Some(ref s) = session {
-                req.extensions_mut().insert(s.clone());
-            }
+            req.extensions_mut().insert(session.clone());
 
-            let res = service.call(req).await?;
+            let mut res = service.call(req).await?;
 
-            if let (Some(id), Some(session)) = (session_id, session) {
-                let session = session.read().await;
-                store.save(&id, &*session).await?;
+            let session = session.read().await;
+            store.save(&session_id, &*session).await?;
+
+            if new_session {
+                use actix_web::cookie::Cookie;
+
+                let cookie = Cookie::build(cookie_name, session_id.to_string())
+                    .path("/")
+                    .http_only(true)
+                    .finish();
+
+                res.response_mut()
+                    .add_cookie(&cookie)
+                    .map_err(error::ErrorInternalServerError)?;
             }
 
             Ok(res)

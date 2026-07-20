@@ -126,6 +126,30 @@ async fn test_session_save_on_response() {
 }
 
 #[actix_web::test]
+async fn test_default_session() {
+    let store = Arc::new(MockStore::new());
+
+    let app = test::init_service(
+        App::new()
+            .wrap(SessionMiddleware::new(store.clone()))
+            .route("/inc", web::post().to(inc_counter)),
+    )
+    .await;
+
+    let req = test::TestRequest::post()
+        .uri("/inc")
+        .cookie(actix_web::cookie::Cookie::new("session", "xyz"))
+        .to_request();
+
+    let resp: TestSession = test::call_and_read_body_json(&app, req).await;
+    assert_eq!(resp.counter, 1); // handler incremented
+
+    // Verify it was saved back to store
+    let saved = store.load("xyz").await.unwrap().unwrap();
+    assert_eq!(saved.counter, 1);
+}
+
+#[actix_web::test]
 async fn test_unauthorized_without_session_in_extensions() {
     let app = test::init_service(
         App::new().route("/me", web::get().to(get_session)), // no middleware

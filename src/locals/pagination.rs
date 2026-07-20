@@ -47,4 +47,8 @@ impl Pagination {
     pub fn get() -> Pagination {
         PAGINATION.try_with(|p| *p).unwrap_or_default()
     }
+    
+    pub fn offset(&self)->u32{
+        self.page*self.limit
+    }
 }

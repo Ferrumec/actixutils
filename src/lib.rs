@@ -76,8 +76,8 @@ pub mod pubkey;
 
 #[cfg(feature = "viewset")]
 pub mod viewset;
-pub use extractors::{Access, Auth, Session};
-pub use locals::{
-    Authority, HS256Signer, Identity, Provider, RS256Signer, RS256Validator, SessionStore, Sign,
-    Validate,
-};
+#[cfg(feature = "jwt")]
+pub use extractors::Jwt;
+pub use locals::{Authority, Identity, Provider, SessionStore, Sign, Validate};
+#[cfg(feature = "jwt")]
+pub use locals::{HS256Signer, RS256Signer, RS256Validator};

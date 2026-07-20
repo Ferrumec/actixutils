@@ -28,6 +28,7 @@ mod auth;
 mod constant_time;
 #[cfg(feature = "es")]
 mod context;
+#[cfg(feature = "jwt")]
 mod fns;
 mod idempotency;
 mod pagination;
@@ -41,6 +42,7 @@ pub use auth::Auth;
 pub use constant_time::ResponseEqualizer;
 #[cfg(feature = "es")]
 pub use context::{Context, GetId, ReadContext};
+#[cfg(feature = "jwt")]
 pub use fns::{authority, identity};
 pub use idempotency::Idempotency;
 pub use pagination::{Pagination, PaginationMiddleware};

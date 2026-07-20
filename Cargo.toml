@@ -14,9 +14,9 @@ bytes = "1.11.1"
 chrono = "0.4.44"
 dashmap = "6.2.1"
 futures-util = "0.3.32"
-jsonwebtoken = "9.3.1"
+jsonwebtoken = { version = "9.3.1", optional = true }
 rand = "0.10.1"
-serde = "1.0.228"
+serde = { version = "1.0.228", features = ["derive"] }
 tokio = "1.52.3"
 tracing = "0.1.44"
 uuid = { version = "1.23.1", features = ["serde", "v4"] }
@@ -29,4 +29,4 @@ viewset-macros = { path="/sdcard/viewset-macros", optional = true }
 [features]
 es = ["typed-eventbus"]
 viewset = ["serde_json","sqlx", "thiserror", "rust_decimal", "viewset-macros" ]
-
+jwt = ["jsonwebtoken"]

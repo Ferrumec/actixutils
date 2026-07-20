@@ -18,7 +18,7 @@
 //! # async fn super_handler() -> actix_web::HttpResponse { actix_web::HttpResponse::Ok().finish() }
 //! ```
 
-use crate::extractors::Auth;
+use crate::extractors::Jwt;
 use crate::locals::{Authority, Identity};
 
 use actix_web::{
@@ -38,7 +38,7 @@ pub async fn identity(
     mut req: ServiceRequest,
     next: Next<BoxBody>,
 ) -> Result<ServiceResponse<BoxBody>, Error> {
-    let _user = req.extract::<Auth<Identity>>().await?;
+    let _user = req.extract::<Jwt<Identity>>().await?;
     next.call(req).await
 }
 
@@ -69,7 +69,7 @@ pub fn authority(
 ) -> Pin<Box<dyn Future<Output = Result<ServiceResponse<BoxBody>, Error>>>> {
     move |mut req: ServiceRequest, next: Next<BoxBody>| {
         Box::pin(async move {
-            let authority = req.extract::<Auth<Authority>>().await?.0;
+            let authority = req.extract::<Jwt<Authority>>().await?.0;
             let p_value = 1u128 << perm_id;
 
             if authority.role & p_value != p_value {

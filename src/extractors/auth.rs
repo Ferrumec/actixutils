@@ -43,16 +43,16 @@ use std::sync::Arc;
 ///     HttpResponse::Ok().json(&auth.0)
 /// }
 /// ```
-pub struct Auth<T>(pub T);
+pub struct Jwt<T>(pub T);
 
-impl<T: Clone + 'static> FromRequest for Auth<T> {
+impl<T: Clone + 'static> FromRequest for Jwt<T> {
     type Error = Error;
     type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
         // Try getting from request extensions
         if let Some(identity) = req.extensions().get::<T>() {
-            return ready(Ok(Auth(identity.clone())));
+            return ready(Ok(Jwt(identity.clone())));
         };
 
         // 1. Get app state
@@ -80,7 +80,7 @@ impl<T: Clone + 'static> FromRequest for Auth<T> {
 
         // 3. Validate token
         match state.validate(&token) {
-            Ok(identity) => ready(Ok(Auth(identity))),
+            Ok(identity) => ready(Ok(Jwt(identity))),
             Err(e) => {
                 tracing::debug!("Invalid token: {e}");
                 ready(Err(ErrorUnauthorized("Invalid token")))

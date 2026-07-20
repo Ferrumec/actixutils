@@ -19,10 +19,12 @@
 //! | [`context::Context`] (feature `es`) | Task-scoped event-publishing context |
 
 mod claims;
+#[cfg(feature = "jwt")]
 mod hs256;
 mod idempotency;
 pub mod pagination;
 mod provider;
+#[cfg(feature = "jwt")]
 mod rs256;
 mod session_store;
 mod signer_core;
@@ -33,10 +35,12 @@ pub mod rate_limiter;
 pub mod context;
 
 pub use claims::{Authority, Identity};
+#[cfg(feature = "jwt")]
 pub use hs256::HS256Signer;
 pub use idempotency::{CachedResponse, IdempotencyState, IdempotencyStore};
 pub use pagination::Pagination;
 pub use provider::Provider;
+#[cfg(feature = "jwt")]
 pub use rs256::{RS256Signer, RS256Validator};
 pub use session_store::SessionStore;
 pub use signer_core::{Sign, Validate};

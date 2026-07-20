@@ -127,14 +127,17 @@ where
         Box::pin(async move {
             let (session_id, session, new_session) = match req.cookie(&cookie_name) {
                 Some(cookie) => {
+                    let mut new_session = false;
                     let id = match Uuid::parse_str(&cookie.value().to_owned()){
                         Ok(id) =>id,
-                        Err(_) =>Uuid::new_v4()
+                        Err(_) =>{
+                            new_session = true;
+                            Uuid::new_v4()}
                     };
 
                     let session = store.load(&id).await?.unwrap_or_default();
 
-                    (id, Arc::new(RwLock::new(session)), false)
+                    (id, Arc::new(RwLock::new(session)), new_session)
                 }
                 None => {
                     let id = Uuid::new_v4();

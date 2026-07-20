@@ -194,7 +194,13 @@ where
                 }
             }
 
-            let response = service.call(req).await?;
+            let response = match service.call(req).await{
+                Ok(r) => r,
+                Err(e) =>{
+                    let _ = store.release(&key).await;
+                    return Err(e)
+                }
+            };
             let (req, res) = response.into_parts();
             let status = res.status();
 

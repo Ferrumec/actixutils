@@ -25,7 +25,8 @@ serde_json = { version = "1.0.150", optional = true }
 sqlx = { version = "0.8.6", optional = true, features = ["postgres",  "uuid","chrono","rust_decimal","sqlite"] }
 thiserror = { version = "2.0.18", optional = true }
 rust_decimal = { version = "1.42.1", optional = true }
-viewset-macros = { path="/sdcard/viewset-macros", optional = true }
+viewset-macros = { version = "0.1.0", optional = true }
+
 [features]
 es = ["typed-eventbus"]
 viewset = ["serde_json","sqlx", "thiserror", "rust_decimal", "viewset-macros" ]

@@ -3,6 +3,7 @@ name = "actixutils"
 version = "0.2.0"
 edition = "2024"
 description = "Reusable middleware and request utilities for Actix Web"
+changelog = "CHANGELOG.md"
 license = "MIT"
 repository = "https://github.com/Ferrumec/actixutils"
 

@@ -35,7 +35,7 @@ use std::sync::Arc;
 ///
 /// # Example
 /// ```rust,no_run
-/// use actixutils::extractors::Auth;
+/// use actixutils::extractors::Jwt as Auth;
 /// use actixutils::locals::Identity;
 /// use actix_web::HttpResponse;
 ///

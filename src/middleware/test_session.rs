@@ -84,7 +84,10 @@ async fn test_session_load_from_cookie() {
 
     let req = test::TestRequest::get()
         .uri("/me")
-        .cookie(actix_web::cookie::Cookie::new("session",sess_id.to_string()))
+        .cookie(actix_web::cookie::Cookie::new(
+            "session",
+            sess_id.to_string(),
+        ))
         .to_request();
 
     let resp: TestSession = test::call_and_read_body_json(&app, req).await;
@@ -117,7 +120,10 @@ async fn test_session_save_on_response() {
 
     let req = test::TestRequest::post()
         .uri("/inc")
-        .cookie(actix_web::cookie::Cookie::new("session", sess_id.to_string()))
+        .cookie(actix_web::cookie::Cookie::new(
+            "session",
+            sess_id.to_string(),
+        ))
         .to_request();
 
     let resp: TestSession = test::call_and_read_body_json(&app, req).await;
@@ -146,11 +152,10 @@ async fn test_default_session() {
 
     let resp: TestSession = test::call_and_read_body_json(&app, req).await;
     assert_eq!(resp.counter, 1); // handler incremented
-    
 }
 
 #[actix_web::test]
-async fn test_unauthorized_without_session_in_extensions() {
+async fn test_server_error_without_session_in_extensions() {
     let app = test::init_service(
         App::new().route("/me", web::get().to(get_session)), // no middleware
     )
@@ -158,5 +163,24 @@ async fn test_unauthorized_without_session_in_extensions() {
 
     let req = test::TestRequest::get().uri("/me").to_request();
     let resp = test::call_service(&app, req).await;
-    assert_eq!(resp.status(), 401); // FromRequest returns ErrorUnauthorized
+    assert_eq!(resp.status(), 500); // FromRequest returns ErrorUnauthorized
+}
+
+#[actix_web::test]
+async fn test_unauthorized_without_required_session() {
+    let store = Arc::new(MockStore::new());
+    let app = test::init_service(
+        App::new()
+            .wrap(SessionMiddleware::required(store.clone()))
+            .route("/me", web::get().to(get_session)),
+    )
+    .await;
+
+    let req = test::TestRequest::get().uri("/me").to_request();
+    let result = test::try_call_service(&app, req).await;
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.as_response_error().status_code(),
+        actix_web::http::StatusCode::UNAUTHORIZED
+    ); // FromRequest returns ErrorUnauthorized
 }

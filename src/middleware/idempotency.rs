@@ -194,11 +194,11 @@ where
                 }
             }
 
-            let response = match service.call(req).await{
+            let response = match service.call(req).await {
                 Ok(r) => r,
-                Err(e) =>{
+                Err(e) => {
                     let _ = store.release(&key).await;
-                    return Err(e)
+                    return Err(e);
                 }
             };
             let (req, res) = response.into_parts();

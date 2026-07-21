@@ -14,7 +14,7 @@
 //! ## Quick start
 //!
 //! ```rust,no_run
-//! use actixutils::{HS256Signer, Identity, Auth};
+//! use actixutils::{HS256Signer, Identity, Jwt as Auth};
 //! use actix_web::{web, App, HttpServer, HttpResponse};
 //! use std::sync::Arc;
 //! use uuid::Uuid;

@@ -15,8 +15,8 @@ use uuid::Uuid;
 /// # Fields
 /// * `sub` — Subject: the UUID of the authenticated user.
 /// * `aud` — Audiences this token is valid for.
-/// * `iat` — Issued-at timestamp (milliseconds since the Unix epoch).
-/// * `exp` — Expiry timestamp (milliseconds since the Unix epoch).
+/// * `iat` — Issued-at timestamp (seconds since the Unix epoch).
+/// * `exp` — Expiry timestamp (seconds since the Unix epoch).
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Identity {
     pub aud: Vec<String>,
@@ -37,8 +37,8 @@ pub struct Identity {
 ///            was issued for (e.g. a community or tenant ID).
 /// * `role` — Permission bitmask (up to 128 discrete permissions).
 /// * `aud`  — Audiences this token is valid for.
-/// * `iat`  — Issued-at timestamp (milliseconds since the Unix epoch).
-/// * `exp`  — Expiry timestamp (milliseconds since the Unix epoch).
+/// * `iat`  — Issued-at timestamp (seconds since the Unix epoch).
+/// * `exp`  — Expiry timestamp (seconds since the Unix epoch).
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Authority {
     pub iat: usize,

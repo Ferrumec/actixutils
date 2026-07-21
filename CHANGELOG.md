@@ -1,4 +1,22 @@
-## [unreleased]
+## [0.2.1] - 2026-07-21
+
+### 🚀 Features
+
+- Added required mode to SessionMiddleware.
+
+### 🐛 Bug Fixes
+
+- Tests for session middleware
+- SessionStore::save now saves only if the session was modified.
+
+### 📚 Documentation
+
+- *(toml)* Added changelog reference to Cargo.toml
+
+### ⚙️ Miscellaneous Tasks
+
+- New version pins
+## [0.2] - 2026-07-20
 
 ### 🚀 Features
 
@@ -20,4 +38,13 @@
 
 - Breaking: removed locals::utils
 - Breaking: renamed Auth<T> extractor to Jwt<T>
+
+### 📚 Documentation
+
+- Added changelog
+
+### ⚙️ Miscellaneous Tasks
+
+- Fixed viewset-macro version
+- *(release)* Bumped to v0.2
 ## [0.1.0] - 2026-06-24

@@ -49,12 +49,12 @@ impl SessionStore for MockStore {
 
 // Handler that uses the extractor
 async fn get_session(session: Session<TestSession>) -> impl Responder {
-    let s = session.0.read().await;
+    let s = session.read().await;
     HttpResponse::Ok().json(&*s)
 }
 
 async fn inc_counter(session: Session<TestSession>) -> impl Responder {
-    let mut s = session.0.write().await;
+    let mut s = session.write().await;
     s.counter += 1;
     HttpResponse::Ok().json(&*s)
 }

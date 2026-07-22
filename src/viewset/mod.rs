@@ -1,4 +1,4 @@
-//! ferrumec-admin
+//! actixutils viewset
 //!
 //! A generic, Django-REST-Framework-inspired CRUD toolkit for building
 //! admin REST APIs on top of actix-web + sqlx + Postgres.
@@ -11,23 +11,20 @@
 //! implementations, so a new entity only needs a handful of `impl` blocks
 //! plus entity metadata to get a fully working CRUD API.
 
-pub mod context;
-pub mod entity;
-pub mod error;
-pub mod pagination;
-pub mod repository;
-pub mod service;
-pub mod sql;
-pub mod viewset;
-
-pub mod prelude {
-    pub use super::context::RequestContext;
-    pub use super::entity::Entity;
-    pub use super::error::ApiError;
-    pub use super::pagination::{Page, PaginationParams, QueryParams, SortDirection};
-    pub use super::repository::Repository;
-    pub use super::service::Service;
-    pub use super::sql::{Field, SqlType, SqlValue};
-    pub use super::viewset::ViewSet;
-    pub use viewset_macros::Entity;
-}
+mod context;
+mod entity;
+mod error;
+mod pagination;
+mod repository;
+mod service;
+mod sql;
+mod viewset;
+pub use context::RequestContext;
+pub use entity::Entity;
+pub use error::ApiError;
+pub use pagination::{Page, PaginationParams, QueryParams, SortDirection};
+pub use repository::Repository;
+pub use service::Service;
+pub use sql::{Field, SqlType, SqlValue};
+pub use viewset::ViewSet;
+pub use viewset_macros::Entity;

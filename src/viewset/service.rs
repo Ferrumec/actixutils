@@ -1,4 +1,3 @@
-use super::context::RequestContext;
 use super::entity::Entity;
 use super::error::ApiResult;
 use super::pagination::{Page, QueryParams};
@@ -25,117 +24,77 @@ pub trait Service: Send + Sync {
 
     // ---- hooks (all default no-ops) -------------------------------------
 
-    async fn before_list(
-        &self,
-        _ctx: &RequestContext<Self::User>,
-        _q: &QueryParams,
-    ) -> ApiResult<()> {
+    async fn before_list(&self, _q: &QueryParams) -> ApiResult<()> {
         Ok(())
     }
-    async fn after_list(
-        &self,
-        _ctx: &RequestContext<Self::User>,
-        page: Page<E<Self>>,
-    ) -> ApiResult<Page<E<Self>>> {
+    async fn after_list(&self, page: Page<E<Self>>) -> ApiResult<Page<E<Self>>> {
         Ok(page)
     }
 
     async fn before_create(
         &self,
-        _ctx: &RequestContext<Self::User>,
+
         dto: <E<Self> as Entity>::CreateDto,
     ) -> ApiResult<<E<Self> as Entity>::CreateDto> {
         Ok(dto)
     }
-    async fn after_create(
-        &self,
-        _ctx: &RequestContext<Self::User>,
-        entity: E<Self>,
-    ) -> ApiResult<E<Self>> {
+    async fn after_create(&self, entity: E<Self>) -> ApiResult<E<Self>> {
         Ok(entity)
     }
 
     async fn before_update(
         &self,
-        _ctx: &RequestContext<Self::User>,
+
         _id: &<E<Self> as Entity>::Id,
         dto: <E<Self> as Entity>::UpdateDto,
     ) -> ApiResult<<E<Self> as Entity>::UpdateDto> {
         Ok(dto)
     }
-    async fn after_update(
-        &self,
-        _ctx: &RequestContext<Self::User>,
-        entity: E<Self>,
-    ) -> ApiResult<E<Self>> {
+    async fn after_update(&self, entity: E<Self>) -> ApiResult<E<Self>> {
         Ok(entity)
     }
 
-    async fn before_delete(
-        &self,
-        _ctx: &RequestContext<Self::User>,
-        _id: &<E<Self> as Entity>::Id,
-    ) -> ApiResult<()> {
+    async fn before_delete(&self, _id: &<E<Self> as Entity>::Id) -> ApiResult<()> {
         Ok(())
     }
-    async fn after_delete(
-        &self,
-        _ctx: &RequestContext<Self::User>,
-        _id: &<E<Self> as Entity>::Id,
-    ) -> ApiResult<()> {
+    async fn after_delete(&self, _id: &<E<Self> as Entity>::Id) -> ApiResult<()> {
         Ok(())
     }
 
     // ---- default CRUD, built from the hooks above ------------------------
 
-    async fn list(
-        &self,
-        ctx: &RequestContext<Self::User>,
-        q: QueryParams,
-    ) -> ApiResult<Page<E<Self>>> {
-        self.before_list(ctx, &q).await?;
-        let (items, total) = self.repository().list(&ctx.db, &q).await?;
+    async fn list(&self, q: QueryParams) -> ApiResult<Page<E<Self>>> {
+        self.before_list(&q).await?;
+        let (items, total) = self.repository().list(&q).await?;
         let pagination = super::pagination::PaginationParams::from_query(&q);
         let page = Page::new(items, &pagination, total);
-        self.after_list(ctx, page).await
+        self.after_list(page).await
     }
 
-    async fn retrieve(
-        &self,
-        ctx: &RequestContext<Self::User>,
-        id: <E<Self> as Entity>::Id,
-    ) -> ApiResult<E<Self>> {
-        self.repository().retrieve(&ctx.db, &id).await
+    async fn retrieve(&self, id: <E<Self> as Entity>::Id) -> ApiResult<E<Self>> {
+        self.repository().retrieve(&id).await
     }
 
-    async fn create(
-        &self,
-        ctx: &RequestContext<Self::User>,
-        dto: <E<Self> as Entity>::CreateDto,
-    ) -> ApiResult<E<Self>> {
-        let dto = self.before_create(ctx, dto).await?;
-        let entity = self.repository().create(&ctx.db, &dto).await?;
-        self.after_create(ctx, entity).await
+    async fn create(&self, dto: <E<Self> as Entity>::CreateDto) -> ApiResult<E<Self>> {
+        let dto = self.before_create(dto).await?;
+        let entity = self.repository().create(&dto).await?;
+        self.after_create(entity).await
     }
 
     async fn update(
         &self,
-        ctx: &RequestContext<Self::User>,
+
         id: <E<Self> as Entity>::Id,
         dto: <E<Self> as Entity>::UpdateDto,
     ) -> ApiResult<E<Self>> {
-        let dto = self.before_update(ctx, &id, dto).await?;
-        let entity = self.repository().update(&ctx.db, &id, &dto).await?;
-        self.after_update(ctx, entity).await
+        let dto = self.before_update(&id, dto).await?;
+        let entity = self.repository().update(&id, &dto).await?;
+        self.after_update(entity).await
     }
 
-    async fn delete(
-        &self,
-        ctx: &RequestContext<Self::User>,
-        id: <E<Self> as Entity>::Id,
-    ) -> ApiResult<()> {
-        self.before_delete(ctx, &id).await?;
-        self.repository().delete(&ctx.db, &id).await?;
-        self.after_delete(ctx, &id).await
+    async fn delete(&self, id: <E<Self> as Entity>::Id) -> ApiResult<()> {
+        self.before_delete(&id).await?;
+        self.repository().delete(&id).await?;
+        self.after_delete(&id).await
     }
 }

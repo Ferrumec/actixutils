@@ -27,6 +27,8 @@ pub trait Repository: Send + Sync {
         fields_from_dto::<Self::Entity>(dto)
     }
 
+    fn database(&self) -> &PgPool;
+
     /// Row-to-column-value pairs for UPDATE. Only fields actually present
     /// in the serialized DTO are returned, so PATCH semantics fall out of
     /// `#[serde(skip_serializing_if = "Option::is_none")]` on the
@@ -36,7 +38,7 @@ pub trait Repository: Send + Sync {
         fields_from_dto::<Self::Entity>(dto)
     }
 
-    async fn list(&self, db: &PgPool, query: &QueryParams) -> ApiResult<(Vec<Self::Entity>, i64)> {
+    async fn list(&self, query: &QueryParams) -> ApiResult<(Vec<Self::Entity>, i64)> {
         let pagination = PaginationParams::from_query(query);
         let e = <Self::Entity as Entity>::TABLE;
 
@@ -80,18 +82,17 @@ pub trait Repository: Send + Sync {
 
         let items = select_qb
             .build_query_as::<Self::Entity>()
-            .fetch_all(db)
+            .fetch_all(self.database())
             .await?;
-        let total: i64 = count_qb.build_query_scalar().fetch_one(db).await?;
+        let total: i64 = count_qb
+            .build_query_scalar()
+            .fetch_one(self.database())
+            .await?;
 
         Ok((items, total))
     }
 
-    async fn retrieve(
-        &self,
-        db: &PgPool,
-        id: &<Self::Entity as Entity>::Id,
-    ) -> ApiResult<Self::Entity> {
+    async fn retrieve(&self, id: &<Self::Entity as Entity>::Id) -> ApiResult<Self::Entity> {
         let e = <Self::Entity as Entity>::TABLE;
         let pk = <Self::Entity as Entity>::PK_COLUMN;
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!(
@@ -103,16 +104,12 @@ pub trait Repository: Send + Sync {
         push_soft_delete_clause::<Self::Entity>(&mut qb, &mut has_where);
 
         qb.build_query_as::<Self::Entity>()
-            .fetch_optional(db)
+            .fetch_optional(self.database())
             .await?
             .ok_or(ApiError::NotFound)
     }
 
-    async fn create(
-        &self,
-        db: &PgPool,
-        dto: &<Self::Entity as Entity>::CreateDto,
-    ) -> ApiResult<Self::Entity> {
+    async fn create(&self, dto: &<Self::Entity as Entity>::CreateDto) -> ApiResult<Self::Entity> {
         let e = <Self::Entity as Entity>::TABLE;
         let cols = Self::insert_columns(dto);
         if cols.is_empty() {
@@ -131,12 +128,15 @@ pub trait Repository: Send + Sync {
         qb.push(") RETURNING ")
             .push(<Self::Entity as Entity>::COLUMNS.join(", "));
 
-        Ok(qb.build_query_as::<Self::Entity>().fetch_one(db).await?)
+        Ok(qb
+            .build_query_as::<Self::Entity>()
+            .fetch_one(self.database())
+            .await?)
     }
 
     async fn update(
         &self,
-        db: &PgPool,
+
         id: &<Self::Entity as Entity>::Id,
         dto: &<Self::Entity as Entity>::UpdateDto,
     ) -> ApiResult<Self::Entity> {
@@ -145,7 +145,7 @@ pub trait Repository: Send + Sync {
         let cols = Self::update_columns(dto);
 
         if cols.is_empty() {
-            return self.retrieve(db, id).await;
+            return self.retrieve(id).await;
         }
 
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!("UPDATE {e} SET "));
@@ -162,43 +162,46 @@ pub trait Repository: Send + Sync {
             .push(<Self::Entity as Entity>::COLUMNS.join(", "));
 
         qb.build_query_as::<Self::Entity>()
-            .fetch_optional(db)
+            .fetch_optional(self.database())
             .await?
             .ok_or(ApiError::NotFound)
     }
 
-    async fn delete(&self, db: &PgPool, id: &<Self::Entity as Entity>::Id) -> ApiResult<()> {
+    async fn delete(&self, id: &<Self::Entity as Entity>::Id) -> ApiResult<()> {
         let e = <Self::Entity as Entity>::TABLE;
         let pk = <Self::Entity as Entity>::PK_COLUMN;
 
-        if let Some(col) = <Self::Entity as Entity>::SOFT_DELETE_COLUMN {
-            let sql = format!("UPDATE {e} SET {col} = now() WHERE {pk} = $1");
-            let res = sqlx::query(&sql).bind(id).execute(db).await?;
-            if res.rows_affected() == 0 {
-                return Err(ApiError::NotFound);
-            }
-        } else {
-            let sql = format!("DELETE FROM {e} WHERE {pk} = $1");
-            let res = sqlx::query(&sql).bind(id).execute(db).await?;
-            if res.rows_affected() == 0 {
-                return Err(ApiError::NotFound);
-            }
+        let mut qb: QueryBuilder<Postgres> =
+            if let Some(col) = <Self::Entity as Entity>::SOFT_DELETE_COLUMN {
+                QueryBuilder::new(format!("UPDATE {e} SET {col} = now() WHERE {pk} = "))
+            } else {
+                QueryBuilder::new(format!("DELETE FROM {e} WHERE {pk} = "))
+            };
+        qb.push_bind(id);
+
+        let res = qb.build().execute(self.database()).await?;
+        if res.rows_affected() == 0 {
+            return Err(ApiError::NotFound);
         }
         Ok(())
     }
 
-    async fn exists(&self, db: &PgPool, id: &<Self::Entity as Entity>::Id) -> ApiResult<bool> {
+    async fn exists(&self, id: &<Self::Entity as Entity>::Id) -> ApiResult<bool> {
         let e = <Self::Entity as Entity>::TABLE;
         let pk = <Self::Entity as Entity>::PK_COLUMN;
-        let sql = format!("SELECT EXISTS(SELECT 1 FROM {e} WHERE {pk} = $1)");
-        let exists: bool = sqlx::query_scalar(&sql).bind(id).fetch_one(db).await?;
+        let mut qb: QueryBuilder<Postgres> =
+            QueryBuilder::new(format!("SELECT EXISTS(SELECT 1 FROM {e} WHERE {pk} = "));
+        qb.push_bind(id);
+        qb.push(")");
+
+        let exists: bool = qb.build_query_scalar().fetch_one(self.database()).await?;
         Ok(exists)
     }
 
-    async fn count(&self, db: &PgPool) -> ApiResult<i64> {
+    async fn count(&self) -> ApiResult<i64> {
         let e = <Self::Entity as Entity>::TABLE;
-        let sql = format!("SELECT COUNT(*) FROM {e}");
-        Ok(sqlx::query_scalar(&sql).fetch_one(db).await?)
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!("SELECT COUNT(*) FROM {e}"));
+        Ok(qb.build_query_scalar().fetch_one(self.database()).await?)
     }
 }
 

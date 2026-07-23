@@ -2,9 +2,12 @@
 //!
 //! | Extractor | What it does |
 //! |---|---|
-//! | [`Auth<T>`] | Validates a Bearer JWT (or reuses claims set by [`middleware::Auth`](crate::middleware)) and yields `T` |
-//! | [`Access`] | Yields the raw Bearer token string for manual validation |
-//! | [`Session<T>`] | Resolves the `session_id` cookie to a typed session value via [`SessionStore<T>`](crate::locals::SessionStore) |
+//! | [`Jwt<T>`] | Validates a Bearer JWT (or reuses claims already set by [`middleware::Auth`](crate::middleware::Auth)) and yields `T` |
+//! | [`Filters`] | Collects arbitrary `?field=value` query-string pairs into a `HashMap` |
+//!
+//! The cookie-based [`Session<T>`](crate::middleware::Session) extractor lives in
+//! [`crate::middleware`] instead of here, since it is only usable once
+//! [`SessionMiddleware`](crate::middleware::SessionMiddleware) has populated the request.
 #[cfg(feature = "jwt")]
 mod auth;
 mod filters;

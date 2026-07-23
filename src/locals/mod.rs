@@ -13,7 +13,7 @@
 //! | [`HS256Signer`] | HMAC-SHA-256 signer + validator |
 //! | [`RS256Signer`] / [`RS256Validator`] | RSA-SHA-256 signer / validator |
 //! | [`Provider<T>`] | Lightweight dependency-injection trait |
-//! | [`SessionStore<T>`] | Backing store trait for [`crate::extractors::Session`] |
+//! | [`SessionStore<T>`] | General-purpose synchronous session-store trait (not used by [`crate::middleware::Session`], which has its own internal store trait) |
 //! | [`IdempotencyStore`] | Backing store trait for the idempotency middleware |
 //! | [`pagination::Pagination`] | Task-local pagination snapshot |
 //! | [`context::Context`] (feature `es`) | Task-scoped event-publishing context |

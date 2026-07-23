@@ -3,7 +3,7 @@
 //! These traits are the foundation of actixutils' pluggable JWT design.
 //! [`HS256Signer`](crate::locals::HS256Signer), [`RS256Signer`](crate::locals::RS256Signer), and
 //! [`RS256Validator`](crate::locals::RS256Validator) all implement one or both traits, and
-//! [`Auth<T>`](crate::extractors::Auth) / [`middleware::Auth`](crate::middleware) accept any
+//! [`Jwt<T>`](crate::extractors::Jwt) / [`middleware::Auth`](crate::middleware::Auth) accept any
 //! `Arc<dyn Validate<T>>` at runtime.
 
 use anyhow::Result;
@@ -24,7 +24,7 @@ pub trait Sign<T>: Send + Sync + 'static {
 /// Decode and cryptographically verify a JWT string, yielding the claims on success.
 ///
 /// This trait is used as a trait object (`Arc<dyn Validate<T>>`) in both the
-/// [`Auth<T>`](crate::extractors::Auth) extractor and the [`middleware::Auth`](crate::middleware)
+/// [`Jwt<T>`](crate::extractors::Jwt) extractor and the [`middleware::Auth`](crate::middleware::Auth)
 /// middleware, allowing any compatible signer or dedicated validator to be injected
 /// into the application state.
 ///

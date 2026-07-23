@@ -38,7 +38,7 @@ pub struct RS256Signer {
 /// An RSA-based JWT validator that uses a PEM-encoded public key.
 ///
 /// Wrap in an [`Arc`](std::sync::Arc) and register as app data so that
-/// [`Auth<T>`](crate::extractors::Auth) can use it to verify tokens produced by a remote
+/// [`Jwt<T>`](crate::extractors::Jwt) can use it to verify tokens produced by a remote
 /// [`RS256Signer`].
 ///
 /// # Example

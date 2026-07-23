@@ -1,8 +1,16 @@
+//! [`Filters`] — collects arbitrary query-string parameters for manual filtering.
+
 use actix_web::{Error, FromRequest, HttpRequest, dev::Payload, error::ErrorBadRequest, web};
 use futures_util::future::LocalBoxFuture;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
+/// An extractor that collects every query-string parameter into a `HashMap<String, String>`.
+///
+/// Unlike a typed `web::Query<T>`, this accepts any set of key/value pairs without a
+/// fixed schema, which is useful for handlers that apply ad-hoc filtering (e.g.
+/// `?status=active&owner=42`) against a repository or query builder. Derefs to the
+/// inner `HashMap` for convenient access.
 #[derive(Debug, Clone, Default)]
 pub struct Filters(pub HashMap<String, String>);
 

@@ -4,7 +4,7 @@
 //! rolling time window. Identities are extracted from the request using Actix-web's
 //! [`FromRequest`] mechanism — any extractor that implements
 //! [`GetId`](crate::locals::rate_limiter::GetId) can be used as the key (e.g.
-//! [`Auth<Identity>`](crate::extractors::Auth), a session type, or a custom IP
+//! [`Jwt<Identity>`](crate::extractors::Jwt), a session type, or a custom IP
 //! extractor).
 //!
 //! When the limit is exceeded the middleware returns `429 Too Many Requests`
@@ -17,7 +17,7 @@
 //!
 //! # Example
 //! ```ignore
-//! use actixutils::extractors::Auth;
+//! use actixutils::extractors::Jwt as Auth;
 //! use actixutils::locals::Identity;
 //! use actixutils::middleware::RateLimiter;
 //! use actix_web::{web, App};

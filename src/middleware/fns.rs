@@ -1,7 +1,7 @@
 //! `Next`-style middleware functions for identity and authority checks.
 //!
 //! These functions are designed for use with Actix-web's `wrap_fn` / `from_fn`
-//! API.  They integrate with the [`Auth<T>`](crate::Auth) extractor rather than
+//! API.  They integrate with the [`Jwt<T>`](crate::Jwt) extractor rather than
 //! re-implementing token parsing.
 //!
 //! # Example
@@ -33,7 +33,7 @@ use std::pin::Pin;
 /// [`Identity`] token.
 ///
 /// On success the request is forwarded. On failure a `401 Unauthorized` response
-/// is returned by the underlying [`Auth<Identity>`](crate::Auth) extractor.
+/// is returned by the underlying [`Jwt<Identity>`](crate::Jwt) extractor.
 pub async fn identity(
     mut req: ServiceRequest,
     next: Next<BoxBody>,

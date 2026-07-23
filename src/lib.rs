@@ -6,9 +6,11 @@
 //! Actixutils provides battle-tested building blocks for secure, scalable HTTP services:
 //!
 //! - **JWT authentication** — HS256 (HMAC) and RS256 (RSA) signing and validation
-//! - **Request extractors** — [`Auth<T>`], [`Access`], and [`Session<T>`] for handler arguments
+//! - **Request extractors** — [`Jwt<T>`](extractors::Jwt) for JWT-authenticated handler
+//!   arguments, plus [`Filters`](extractors::Filters) for ad-hoc query-string filters
 //! - **Middleware suite** — authentication, rate limiting, idempotency, pagination, request ID
-//!   injection, constant-time response equalisation, and typed-eventbus context propagation
+//!   injection, constant-time response equalisation, cookie-based sessions, and
+//!   typed-eventbus context propagation
 //! - **Role-based authorisation** — bitmask permission checks via [`Authority`]
 //!
 //! ## Quick start
@@ -48,25 +50,24 @@
 //!
 //! | Module | Contains |
 //! |---|---|
-//! | [`extractors`] | Types implementing [`FromRequest`](actix_web::FromRequest): [`Auth<T>`], [`Access`], [`Session<T>`] |
-//! | [`middleware`] | Types implementing [`Transform`](actix_web::dev::Transform): the full middleware suite |
+//! | [`extractors`] | Types implementing [`FromRequest`](actix_web::FromRequest): [`Jwt<T>`](extractors::Jwt), [`Filters`](extractors::Filters) |
+//! | [`middleware`] | Types implementing [`Transform`](actix_web::dev::Transform): the full middleware suite, including the [`Session<T>`](middleware::Session) extractor and its [`SessionMiddleware`](middleware::SessionMiddleware) |
 //! | [`locals`] | Everything framework-agnostic: claim structs, signing traits, store traits, and task-local state |
 //!
 //! The most commonly used items from `extractors` and `locals` are also re-exported
 //! at the crate root for convenience (as shown in the quick-start example above), so
-//! existing code that imports `actixutils::Auth`, `actixutils::Identity`, etc.
+//! existing code that imports `actixutils::Jwt`, `actixutils::Identity`, etc.
 //! continues to work unchanged.
 //!
 //! | Module / export | What it provides |
 //! |---|---|
-//! | [`Auth<T>`] | Extractor that validates a Bearer token and yields `T` |
-//! | [`Access`] | Extractor that yields the raw token string for manual validation |
-//! | [`Session<T>`] / [`SessionStore<T>`] | Cookie-based session extractor |
+//! | [`Jwt<T>`] | Extractor that validates a Bearer token (header or `access_token` cookie) and yields `T` |
 //! | [`Identity`] / [`Authority`] | Standard JWT claim structs |
 //! | [`HS256Signer`] | HMAC-SHA-256 signer + validator |
 //! | [`RS256Signer`] / [`RS256Validator`] | RSA-SHA-256 signer / validator |
 //! | [`Sign<T>`] / [`Validate<T>`] | Core signing / validation traits |
-//! | [`middleware`] | Full middleware suite (see module docs) |
+//! | [`SessionStore<T>`] | General-purpose sync session-store trait (not used by [`middleware::Session`], which has its own async store trait) |
+//! | [`middleware`] | Full middleware suite, including [`Session<T>`](middleware::Session) cookie sessions (see module docs) |
 //! | `pubkey::configure` | Actix route that serves the public key at `/.well-known/public-key.pem` |
 
 pub mod extractors;

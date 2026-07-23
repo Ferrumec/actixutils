@@ -1,14 +1,9 @@
 //! Public key exposure utilities.
 //!
-//! This module provides two ways to share a service's RSA public key with
-//! external consumers:
-//!
-//! * [`configure`] — registers a `GET /.well-known/public-key.pem` route in an
-//!   Actix-web [`ServiceConfig`](actix_web::web::ServiceConfig). The key is read
-//!   once at startup from the `validate.key` environment variable.
-//! * [`remote_public_key`] — fetches a PEM key from a remote URL specified by the
-//!   `REMOTE_PUBLIC_KEY` environment variable. Useful for downstream services that
-//!   need to retrieve the auth service's public key at runtime.
+//! This module provides a way to share a service's RSA public key with external
+//! consumers: [`configure`] registers a `GET /.well-known/public-key.pem` route in an
+//! Actix-web [`ServiceConfig`](actix_web::web::ServiceConfig). The key is read once at
+//! startup from the `validate.key` environment variable.
 
 use std::env;
 

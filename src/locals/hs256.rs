@@ -13,7 +13,7 @@ use serde::{Serialize, de::DeserializeOwned};
 ///
 /// Wrap in an [`Arc`](std::sync::Arc) and register with
 /// [`web::Data::from`](actix_web::web::Data::from) to make it available to
-/// [`Auth<T>`](crate::extractors::Auth) and [`middleware::Auth`](crate::middleware).
+/// [`Jwt<T>`](crate::extractors::Jwt) and [`middleware::Auth`](crate::middleware::Auth).
 ///
 /// # Example
 /// ```rust,no_run

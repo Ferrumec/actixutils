@@ -1,6 +1,6 @@
 //! JWT authentication middleware.
 //!
-//! [`Auth<T>`] is the middleware counterpart to the [`crate::Auth`] extractor.
+//! [`Auth<T>`] is the middleware counterpart to the [`crate::Jwt`] extractor.
 //! While the extractor validates on each handler invocation, this middleware validates
 //! once per request and stores the claims in the request extensions, making them
 //! available to all downstream handlers and middleware in the chain.

@@ -10,15 +10,10 @@ type E<S> = <<S as Service>::Repository as Repository>::Entity;
 /// repository; override a `before_*`/`after_*` hook to add validation,
 /// permission checks, transactions, events, audit logging, or caching
 /// without touching the CRUD wiring itself.
-///
-/// `U` matches the user type carried by `RequestContext<U>`.
 #[async_trait]
 pub trait Service: Send + Sync {
     type Repository: Repository;
-    /// User type carried by `RequestContext`. Associated-type defaults are
-    /// unstable, so implementors set this explicitly — `type User = ();`
-    /// is the common no-auth-context choice, see `examples/product.rs`.
-    type User: Send + Sync;
+    
 
     fn repository(&self) -> &Self::Repository;
 

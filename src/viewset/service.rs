@@ -3,6 +3,7 @@ use super::error::ApiResult;
 use super::pagination::{Page, QueryParams};
 use super::repository::Repository;
 use async_trait::async_trait;
+use sqlx::PgPool;
 
 type E<S> = <<S as Service>::Repository as Repository>::Entity;
 
@@ -13,7 +14,6 @@ type E<S> = <<S as Service>::Repository as Repository>::Entity;
 #[async_trait]
 pub trait Service: Send + Sync {
     type Repository: Repository;
-    
 
     fn repository(&self) -> &Self::Repository;
 
@@ -91,5 +91,23 @@ pub trait Service: Send + Sync {
         self.before_delete(&id).await?;
         self.repository().delete(&id).await?;
         self.after_delete(&id).await
+    }
+}
+
+pub struct DefaultService<E: Repository> {
+    repo: E,
+}
+
+impl<E: Repository + From<PgPool>> From<PgPool> for DefaultService<E> {
+    fn from(db: PgPool) -> DefaultService<E> {
+        let repo = db.into();
+        Self { repo }
+    }
+}
+
+impl<E: Repository> Service for DefaultService<E> {
+    type Repository = E;
+    fn repository(&self) -> &E {
+        &self.repo
     }
 }

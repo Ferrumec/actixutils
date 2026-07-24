@@ -3,6 +3,7 @@ use super::error::ApiError;
 use super::pagination::QueryParams;
 use super::service::Service;
 use actix_web::{HttpResponse, web};
+use sqlx::PgPool;
 use std::str::FromStr;
 
 type E<V> =
@@ -131,4 +132,22 @@ where
 {
     raw.parse::<E::Id>()
         .map_err(|_| ApiError::Validation(format!("invalid id: {raw}")))
+}
+
+pub struct DefaultViewSet<S: Service> {
+    service: S,
+}
+
+impl<E: Service + From<PgPool>> From<PgPool> for DefaultViewSet<E> {
+    fn from(db: PgPool) -> DefaultViewSet<E> {
+        let service = db.into();
+        Self { service }
+    }
+}
+
+impl<E: Service + 'static> ViewSet for DefaultViewSet<E> {
+    type Service = E;
+    fn service(&self) -> &E {
+        &self.service
+    }
 }

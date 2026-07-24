@@ -319,3 +319,26 @@ fn push_filters<E: Entity>(
         let _ = pattern;
     }
 }
+
+use std::marker::PhantomData;
+
+pub struct DefaultRepo<E: Entity> {
+    db: PgPool,
+    _marker: PhantomData<E>,
+}
+
+impl<E: Entity> From<PgPool> for DefaultRepo<E> {
+    fn from(db: PgPool) -> DefaultRepo<E> {
+        Self {
+            db,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<E: Entity> Repository for DefaultRepo<E> {
+    type Entity = E;
+    fn database(&self) -> &PgPool {
+        &self.db
+    }
+}

@@ -145,6 +145,12 @@ impl<E: Service + From<PgPool>> From<PgPool> for DefaultViewSet<E> {
     }
 }
 
+impl<E: Service > From<E> for DefaultViewSet<E> {
+    fn from(service: E) -> DefaultViewSet<E> {
+        Self { service }
+    }
+}
+
 impl<E: Service + 'static> ViewSet for DefaultViewSet<E> {
     type Service = E;
     fn service(&self) -> &E {

@@ -1,3 +1,45 @@
+## [unreleased]
+
+### 🚀 Features
+
+- Added drfault implementations for ViewSet, Service and Repository
+- Implemented From<T:Service> for DefaultViewSet<T>
+
+### 🚜 Refactor
+
+- Breaking: removed Service{ type User }
+
+### ⚙️ Miscellaneous Tasks
+
+- *(doc)* Referenced changelog in readme
+## [0.3] - 2026-07-23
+
+### 🐛 Bug Fixes
+
+- Breaking: trait Repository requires fn database defined instead of reading from request extraction
+
+### 📚 Documentation
+
+- Updated documentations
+
+### ⚙️ Miscellaneous Tasks
+
+- Bumped to v0.2.3
+- Bumped to v0.2.3
+- *(version)* Bumped to v0.3
+## [0.2.2] - 2026-07-22
+
+### 🐛 Bug Fixes
+
+- Viewset exports
+
+### 📚 Documentation
+
+- Updated changelog
+
+### ⚙️ Miscellaneous Tasks
+
+- Bumped to v0.2.1
 ## [0.2.1] - 2026-07-21
 
 ### 🚀 Features

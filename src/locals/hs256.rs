@@ -34,6 +34,7 @@ pub struct HS256Signer {
 }
 
 impl HS256Signer {
+    #[allow(clippy::doc_overindented_list_items)]
     /// Create a new `HS256Signer` that signs tokens for `aud` using `secret`.
     ///
     /// # Arguments

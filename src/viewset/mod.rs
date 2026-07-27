@@ -18,6 +18,7 @@ mod pagination;
 mod repository;
 mod service;
 mod sql;
+#[allow(clippy::module_inception)]
 mod viewset;
 pub use context::RequestContext;
 pub use entity::Entity;

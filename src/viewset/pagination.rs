@@ -48,8 +48,7 @@ impl PaginationParams {
         let limit = q
             .page_size
             .unwrap_or(Self::DEFAULT_PAGE_SIZE)
-            .min(Self::MAX_PAGE_SIZE)
-            .max(1);
+            .clamp(1, Self::MAX_PAGE_SIZE);
         Self {
             limit,
             offset: (page - 1) * limit,

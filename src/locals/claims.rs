@@ -24,7 +24,7 @@ pub struct Identity {
     pub exp: usize,
     pub sub: Uuid,
 }
-
+#[allow(clippy::doc_overindented_list_items)]
 /// Extended JWT claims that carry role-based permissions and a recipient context.
 ///
 /// `role` is a 128-bit bitmask. Each bit position corresponds to a distinct

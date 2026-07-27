@@ -61,6 +61,7 @@ pub async fn identity(
 /// web::scope("/billing")
 ///     .wrap(from_fn(authority(3)));
 /// ```
+#[allow(clippy::type_complexity)]
 pub fn authority(
     perm_id: u32,
 ) -> impl Fn(

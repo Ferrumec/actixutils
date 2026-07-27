@@ -1,4 +1,4 @@
-## [unreleased]
+## [0.3.1] - 2026-07-27
 
 ### 🚀 Features
 
@@ -12,6 +12,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - *(doc)* Referenced changelog in readme
+- Bumped to v0.3.1
 ## [0.3] - 2026-07-23
 
 ### 🐛 Bug Fixes

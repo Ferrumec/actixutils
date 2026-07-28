@@ -2,6 +2,11 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing Git tag (e.g. v0.3.1)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -15,6 +20,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -30,8 +37,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag }}
           generate_release_notes: true

@@ -167,6 +167,8 @@ needs only a handful of `impl` blocks plus entity metadata (usually generated vi
 | `ApiError` / `ApiResult<T>` | Shared error enum implementing `ResponseError`, with `sqlx::Error` conversion |
 | `SqlType` / `SqlValue` / `Field` | Typed column metadata so inserts/updates bind native Postgres types instead of everything going through `jsonb` |
 
+[Getting started with ViewSets](viewset)
+
 ## Testing
 
 `middleware::test_session` (compiled only under `#[cfg(test)]`) contains an

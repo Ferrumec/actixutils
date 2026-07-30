@@ -131,6 +131,6 @@ It's a poor fit for resources whose primary operations aren't row-level CRUD
 written as plain actix-web handlers that reuse `RequestContext` and
 `ApiError` for consistency, without going through `ViewSet`.
 
-See **Getting Started** for wiring a first entity end-to-end, and
-**Tutorials & Examples** for hooks, soft delete, custom queries, and
+See [Getting Started](02-getting-started.md) for wiring a first entity end-to-end, and
+[Tutorials & Examples](03-tutorials-examples.md) for hooks, soft delete, custom queries, and
 multi-tenancy patterns.

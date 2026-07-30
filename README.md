@@ -14,6 +14,8 @@ Here is [what's new in v0.3.1](/CHANGELOG.md)
 This README documents the crate as it currently exists in `src/`. It doesn't cover
 work in progress that hasn't landed yet (e.g. `viewset`'s SQLite support).
 
+[Documentation](https://ferrumec.github.io/actixutils/)
+
 ## Crate layout
 
 The crate is split into three top-level modules, by whether an item depends on

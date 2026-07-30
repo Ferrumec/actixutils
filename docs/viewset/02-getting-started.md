@@ -213,7 +213,7 @@ curl -X PATCH localhost:8080/products/<id> \
 
 ## Next steps
 
-Once the default stack is working, see **Tutorials & Examples** for:
+Once the default stack is working, see [Tutorials & Examples](03-tutorials-examples.md) for:
 
 - Adding validation and permission checks with `Service` hooks
 - Multi-tenant scoping via `RequestContext`

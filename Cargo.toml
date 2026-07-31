@@ -1,6 +1,6 @@
 [package]
 name = "actixutils"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2024"
 description = "Reusable middleware and request utilities for Actix Web"
 #changelog = "CHANGELOG.md"

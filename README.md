@@ -9,7 +9,7 @@ Django-REST-Framework-inspired CRUD toolkit over `sqlx` + Postgres.
 Note that this project is still a work in progress and is still going through changes rapidly.
 We deeply welcome ideas for feature additions and optimizations.
 
-Here is [what's new in v0.3.1](/CHANGELOG.md)
+Here is [what's new in v0.4](/CHANGELOG.md)
 
 This README documents the crate as it currently exists in `src/`. It doesn't cover
 work in progress that hasn't landed yet (e.g. `viewset`'s SQLite support).

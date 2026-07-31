@@ -21,6 +21,16 @@ pub enum ApiError {
     #[error("conflict: {0}")]
     Conflict(String),
 
+    /// Optimistic-lock mismatch (e.g. a version/`updated_at` column check
+    /// failed on `UPDATE`).
+    ///
+    /// Design decision: no default `Repository`/`Service` method produces
+    /// this variant — none of them implement optimistic locking. It's
+    /// declared here (with its 409 status wired up below) so a developer
+    /// who overrides `Repository::update`/`update_in_tx` to add a
+    /// version check has a ready-made error to return, instead of
+    /// inventing their own `ApiError` variant or reusing `Conflict` and
+    /// losing the more specific status/semantics.
     #[error("optimistic lock mismatch")]
     StaleVersion,
 
@@ -45,7 +55,21 @@ impl ResponseError for ApiError {
     }
 
     fn error_response(&self) -> HttpResponse {
-        HttpResponse::build(self.status_code()).json(json!({
+        let status = self.status_code();
+
+        // 5xx bodies never carry the raw error text to the client — a
+        // `sqlx::Error`/`Internal` message can contain table/column/
+        // constraint names or other internals. Log the real error
+        // server-side (where it's actually actionable) and return a
+        // generic message instead.
+        if status.is_server_error() {
+            tracing::error!(error = %self, status = %status, "unhandled viewset error");
+            return HttpResponse::build(status).json(json!({
+                "error": "internal server error",
+            }));
+        }
+
+        HttpResponse::build(status).json(json!({
             "error": self.to_string(),
         }))
     }

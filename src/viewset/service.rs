@@ -3,14 +3,20 @@ use super::error::ApiResult;
 use super::pagination::{Page, QueryParams};
 use super::repository::Repository;
 use async_trait::async_trait;
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, Transaction};
 
 type E<S> = <<S as Service>::Repository as Repository>::Entity;
 
 /// Business logic layer. Default methods delegate straight to the
 /// repository; override a `before_*`/`after_*` hook to add validation,
-/// permission checks, transactions, events, audit logging, or caching
-/// without touching the CRUD wiring itself.
+/// permission checks, events, audit logging, or caching without touching
+/// the CRUD wiring itself.
+///
+/// `create`/`update`/`delete` now run their hooks and the underlying
+/// write inside a single transaction: if a hook errors after the write
+/// (or the write errors after a hook), everything rolls back together
+/// instead of leaving a committed row with a hook that never ran (or ran
+/// against data that was then never persisted).
 #[async_trait]
 pub trait Service: Send + Sync {
     type Repository: Repository;
@@ -28,31 +34,47 @@ pub trait Service: Send + Sync {
 
     async fn before_create(
         &self,
-
+        _tx: &mut Transaction<'_, Postgres>,
         dto: <E<Self> as Entity>::CreateDto,
     ) -> ApiResult<<E<Self> as Entity>::CreateDto> {
         Ok(dto)
     }
-    async fn after_create(&self, entity: E<Self>) -> ApiResult<E<Self>> {
+    async fn after_create(
+        &self,
+        _tx: &mut Transaction<'_, Postgres>,
+        entity: E<Self>,
+    ) -> ApiResult<E<Self>> {
         Ok(entity)
     }
 
     async fn before_update(
         &self,
-
+        _tx: &mut Transaction<'_, Postgres>,
         _id: &<E<Self> as Entity>::Id,
         dto: <E<Self> as Entity>::UpdateDto,
     ) -> ApiResult<<E<Self> as Entity>::UpdateDto> {
         Ok(dto)
     }
-    async fn after_update(&self, entity: E<Self>) -> ApiResult<E<Self>> {
+    async fn after_update(
+        &self,
+        _tx: &mut Transaction<'_, Postgres>,
+        entity: E<Self>,
+    ) -> ApiResult<E<Self>> {
         Ok(entity)
     }
 
-    async fn before_delete(&self, _id: &<E<Self> as Entity>::Id) -> ApiResult<()> {
+    async fn before_delete(
+        &self,
+        _tx: &mut Transaction<'_, Postgres>,
+        _id: &<E<Self> as Entity>::Id,
+    ) -> ApiResult<()> {
         Ok(())
     }
-    async fn after_delete(&self, _id: &<E<Self> as Entity>::Id) -> ApiResult<()> {
+    async fn after_delete(
+        &self,
+        _tx: &mut Transaction<'_, Postgres>,
+        _id: &<E<Self> as Entity>::Id,
+    ) -> ApiResult<()> {
         Ok(())
     }
 
@@ -71,26 +93,34 @@ pub trait Service: Send + Sync {
     }
 
     async fn create(&self, dto: <E<Self> as Entity>::CreateDto) -> ApiResult<E<Self>> {
-        let dto = self.before_create(dto).await?;
-        let entity = self.repository().create(&dto).await?;
-        self.after_create(entity).await
+        let mut tx = self.repository().transaction().await?;
+        let dto = self.before_create(&mut tx, dto).await?;
+        let entity = self.repository().create_in_tx(&mut tx, &dto).await?;
+        let entity = self.after_create(&mut tx, entity).await?;
+        tx.commit().await?;
+        Ok(entity)
     }
 
     async fn update(
         &self,
-
         id: <E<Self> as Entity>::Id,
         dto: <E<Self> as Entity>::UpdateDto,
     ) -> ApiResult<E<Self>> {
-        let dto = self.before_update(&id, dto).await?;
-        let entity = self.repository().update(&id, &dto).await?;
-        self.after_update(entity).await
+        let mut tx = self.repository().transaction().await?;
+        let dto = self.before_update(&mut tx, &id, dto).await?;
+        let entity = self.repository().update_in_tx(&mut tx, &id, &dto).await?;
+        let entity = self.after_update(&mut tx, entity).await?;
+        tx.commit().await?;
+        Ok(entity)
     }
 
     async fn delete(&self, id: <E<Self> as Entity>::Id) -> ApiResult<()> {
-        self.before_delete(&id).await?;
-        self.repository().delete(&id).await?;
-        self.after_delete(&id).await
+        let mut tx = self.repository().transaction().await?;
+        self.before_delete(&mut tx, &id).await?;
+        self.repository().delete_in_tx(&mut tx, &id).await?;
+        self.after_delete(&mut tx, &id).await?;
+        tx.commit().await?;
+        Ok(())
     }
 }
 

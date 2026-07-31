@@ -1,3 +1,4 @@
+use super::error::{ApiError, ApiResult};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use rust_decimal::Decimal;
 use uuid::Uuid;
@@ -54,50 +55,66 @@ impl SqlValue {
     /// Converts one field of a DTO's `serde_json::Value` representation
     /// into a typed `SqlValue`, per the column's declared `SqlType`.
     ///
-    /// This is intentionally lenient (falls back to a type's default
-    /// rather than panicking) because a mismatched DTO/column type is a
-    /// developer error the `Entity`/DTO structs should catch at compile
-    /// time, not something this conversion should crash a request over.
-    pub fn from_json(sql_type: SqlType, value: &serde_json::Value) -> Self {
+    /// This is now strict: a value that doesn't fit the declared
+    /// `SqlType` (bad UUID, out-of-range int, unparseable date, etc.)
+    /// returns `ApiError::Validation` instead of silently coercing to a
+    /// type default. Defaulting a bad client value to `0`/`false`/
+    /// `Uuid::nil()`/the epoch is worse than rejecting the request: it
+    /// writes plausible-looking but wrong data instead of surfacing a 422.
+    pub fn from_json(sql_type: SqlType, field_name: &str, value: &serde_json::Value) -> ApiResult<Self> {
         if value.is_null() {
-            return SqlValue::Null;
+            return Ok(SqlValue::Null);
         }
-        match sql_type {
+        let invalid = || {
+            ApiError::Validation(format!(
+                "invalid value for field `{field_name}`: expected {sql_type:?}, got `{value}`"
+            ))
+        };
+        Ok(match sql_type {
+            // Text stays permissive: any JSON scalar can reasonably be
+            // stringified for a text column, this isn't a "wrong type"
+            // situation the way a bad UUID/number/date is.
             SqlType::Text => SqlValue::Text(
                 value
                     .as_str()
                     .map(str::to_string)
                     .unwrap_or_else(|| value.to_string()),
             ),
-            SqlType::Int4 => SqlValue::Int4(value.as_i64().unwrap_or_default() as i32),
-            SqlType::Int8 => SqlValue::Int8(value.as_i64().unwrap_or_default()),
-            SqlType::Float4 => SqlValue::Float4(value.as_f64().unwrap_or_default() as f32),
-            SqlType::Float8 => SqlValue::Float8(value.as_f64().unwrap_or_default()),
-            SqlType::Bool => SqlValue::Bool(value.as_bool().unwrap_or_default()),
+            SqlType::Int4 => SqlValue::Int4(
+                value
+                    .as_i64()
+                    .ok_or_else(invalid)?
+                    .try_into()
+                    .map_err(|_| invalid())?,
+            ),
+            SqlType::Int8 => SqlValue::Int8(value.as_i64().ok_or_else(invalid)?),
+            SqlType::Float4 => SqlValue::Float4(value.as_f64().ok_or_else(invalid)? as f32),
+            SqlType::Float8 => SqlValue::Float8(value.as_f64().ok_or_else(invalid)?),
+            SqlType::Bool => SqlValue::Bool(value.as_bool().ok_or_else(invalid)?),
             SqlType::Uuid => SqlValue::Uuid(
                 value
                     .as_str()
                     .and_then(|s| Uuid::parse_str(s).ok())
-                    .unwrap_or_default(),
+                    .ok_or_else(invalid)?,
             ),
             SqlType::Date => SqlValue::Date(
                 value
                     .as_str()
                     .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
-                    .unwrap_or_default(),
+                    .ok_or_else(invalid)?,
             ),
             SqlType::Timestamp => SqlValue::Timestamp(
                 value
                     .as_str()
                     .and_then(|s| NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f").ok())
-                    .unwrap_or_default(),
+                    .ok_or_else(invalid)?,
             ),
             SqlType::Timestamptz => SqlValue::Timestamptz(
                 value
                     .as_str()
                     .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
                     .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_default(),
+                    .ok_or_else(invalid)?,
             ),
             // rust_decimal's default serde impl emits a JSON string; accept
             // a JSON number too in case a caller uses the "serde-float" feature.
@@ -106,9 +123,9 @@ impl SqlValue {
                     .as_str()
                     .and_then(|s| s.parse::<Decimal>().ok())
                     .or_else(|| value.as_f64().and_then(Decimal::from_f64_retain))
-                    .unwrap_or_default(),
+                    .ok_or_else(invalid)?,
             ),
             SqlType::Json => SqlValue::Json(value.clone()),
-        }
+        })
     }
 }

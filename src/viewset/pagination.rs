@@ -26,9 +26,27 @@ pub struct QueryParams {
     #[serde(flatten)]
     pub filters: HashMap<String, String>,
     /// Comma separated field allow-list for sparse responses.
+    ///
+    /// Design decision: **not consumed by any default `Repository`/
+    /// `Service` method.** Sparse fieldsets are genuinely hard to do
+    /// generically — the default `SELECT` already commits to
+    /// `Entity::COLUMNS` before this would ever apply, and honoring it
+    /// well means touching `ResponseDto` serialization too. This field
+    /// exists so it's parsed once and available if/when a developer
+    /// overrides `handle_list`/`after_list` (or similar) to implement
+    /// sparse fields themselves, rather than every override needing to
+    /// re-parse the query string. Absent an override, a client sending
+    /// `?fields=...` gets the full response with no error and no
+    /// indication the parameter was ignored — that's expected, not a bug.
     #[serde(default)]
     pub fields: Option<String>,
     /// Comma separated relations to eager-load.
+    ///
+    /// Same status as `fields` above: parsed, never applied by any
+    /// default method. Eager-loading depends entirely on an entity's
+    /// specific relations, which this crate has no generic model for.
+    /// Reserved for developers who override the relevant hook/handler to
+    /// implement it themselves.
     #[serde(default)]
     pub expand: Option<String>,
 }

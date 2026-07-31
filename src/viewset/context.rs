@@ -7,6 +7,37 @@ use uuid::Uuid;
 /// `U` is the authenticated-user type and is left generic so each
 /// application can plug in its own auth/claims struct. Everything else is
 /// concrete because it's infrastructure, not business logic.
+///
+/// # Design decision: not threaded through `ViewSet`/`Service`/`Repository`
+///
+/// This struct is deliberately *not* a parameter on any trait method in
+/// this crate. Baking it in would force a `RequestContext<U>` generic
+/// through every layer for every user of the crate, even the (common)
+/// case of a ViewSet that needs none of it — paying for a feature you
+/// don't use.
+///
+/// The intended pattern instead: an application-level `actix-web`
+/// middleware extracts whatever it needs (auth claims, tenant id,
+/// request id, ...) and makes it available via a `tokio::task_local!`,
+/// scoped for the lifetime of that request's task. Any code downstream —
+/// a `before_create` hook, an overridden `Repository` method building a
+/// tenant-scoped `WHERE` clause, etc. — reads the task-local directly
+/// instead of receiving it as a parameter.
+///
+/// This is sound specifically because `ViewSet::configure`'s default
+/// handlers never spawn a new tokio task: `handle_list`/`handle_create`/
+/// etc. call straight down through `Service` and `Repository` on the
+/// same task actix-web is already running the request on, and
+/// `task_local!` values are visible across `.await` points within a
+/// single task. The one place this breaks is if an application's own
+/// hook override calls `tokio::spawn` (e.g. to fire a background job
+/// from `after_create`) — that spawned task does *not* inherit the
+/// task-local and needs the value passed in explicitly if it needs it.
+///
+/// `RequestContext` itself is kept around as a convenience shape for
+/// applications that want a single struct to stash in their task-local
+/// rather than several independent ones — it's infrastructure a
+/// middleware can populate, not something this crate wires up itself.
 #[derive(Clone)]
 pub struct RequestContext<U = ()> {
     pub db: PgPool,
@@ -46,7 +77,8 @@ impl<U> RequestContext<U> {
     }
 }
 
-// Extractor glue: applications implement `FromRequest` for
-// `RequestContext<YourUser>` in their own crate (it depends on their auth
-// middleware), so ferrumec-admin doesn't hard-code an auth mechanism.
-// A minimal example lives in `examples/product.rs`.
+// `RequestContext` has no `FromRequest` impl in this crate on purpose —
+// see the design-decision note on the struct above. Populating and
+// reading it (or the individual pieces of it) is entirely up to each
+// application's own middleware + `tokio::task_local!`, not something
+// wired up here.

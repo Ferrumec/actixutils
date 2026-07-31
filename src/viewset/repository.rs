@@ -1,9 +1,9 @@
 use super::entity::Entity;
 use super::error::{ApiError, ApiResult};
 use super::pagination::{PaginationParams, QueryParams, SortDirection};
-use super::sql::SqlValue;
+use super::sql::{SqlType, SqlValue};
 use async_trait::async_trait;
-use sqlx::{PgPool, Postgres, QueryBuilder};
+use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 
 /// Database access only: no validation, authorization, or business rules.
 /// Every method has a default implementation built from `Entity` metadata
@@ -13,6 +13,16 @@ use sqlx::{PgPool, Postgres, QueryBuilder};
 pub trait Repository: Send + Sync {
     type Entity: Entity;
 
+    fn database(&self) -> &PgPool;
+
+    /// Begin a transaction against this repository's pool. Used by the
+    /// default `Service::create`/`update`/`delete` implementations so a
+    /// mutation and its `before_*`/`after_*` hooks run atomically — if a
+    /// hook (or the write itself) fails, everything rolls back together.
+    async fn transaction(&self) -> ApiResult<Transaction<'_, Postgres>> {
+        Ok(self.database().begin().await?)
+    }
+
     /// Row-to-column-value pairs for INSERT, derived from the create DTO.
     ///
     /// Default implementation: serialize the DTO to a JSON object, then
@@ -21,20 +31,24 @@ pub trait Repository: Send + Sync {
     /// `create()` binds a real `i32`/`Decimal`/`Uuid`/... instead of
     /// wrapping everything in `Json<Value>` (which made Postgres treat
     /// numeric/uuid/timestamp columns as jsonb and reject the insert).
-    /// Override only if a column needs a value the DTO doesn't carry
-    /// directly (computed columns, server-generated defaults, etc.).
-    fn insert_columns(dto: &<Self::Entity as Entity>::CreateDto) -> Vec<(&'static str, SqlValue)> {
+    /// Returns an error (rather than silently defaulting) if a value
+    /// doesn't fit its column's declared type. Override only if a column
+    /// needs a value the DTO doesn't carry directly (computed columns,
+    /// server-generated defaults, etc.).
+    fn insert_columns(
+        dto: &<Self::Entity as Entity>::CreateDto,
+    ) -> ApiResult<Vec<(&'static str, SqlValue)>> {
         fields_from_dto::<Self::Entity>(dto)
     }
-
-    fn database(&self) -> &PgPool;
 
     /// Row-to-column-value pairs for UPDATE. Only fields actually present
     /// in the serialized DTO are returned, so PATCH semantics fall out of
     /// `#[serde(skip_serializing_if = "Option::is_none")]` on the
     /// `UpdateDto`'s fields rather than needing an `Option<SqlValue>`
     /// wrapper: an absent key means "leave the column alone".
-    fn update_columns(dto: &<Self::Entity as Entity>::UpdateDto) -> Vec<(&'static str, SqlValue)> {
+    fn update_columns(
+        dto: &<Self::Entity as Entity>::UpdateDto,
+    ) -> ApiResult<Vec<(&'static str, SqlValue)>> {
         fields_from_dto::<Self::Entity>(dto)
     }
 
@@ -49,11 +63,17 @@ pub trait Repository: Send + Sync {
             <Self::Entity as Entity>::COLUMNS.join(", ")
         ));
 
-        let mut has_where = false;
-        push_soft_delete_clause::<Self::Entity>(&mut select_qb, &mut has_where);
-        push_soft_delete_clause::<Self::Entity>(&mut count_qb, &mut has_where);
-        push_filters::<Self::Entity>(&mut select_qb, query, &mut has_where);
-        push_filters::<Self::Entity>(&mut count_qb, query, &mut { has_where });
+        // `select_qb` and `count_qb` are two independent statements and
+        // must track their own WHERE state separately — sharing one flag
+        // between them caused a bare `AND` with no preceding `WHERE` on
+        // `count_qb` whenever a soft-delete column or any filter/search
+        // param was involved, which Postgres rejects as a syntax error.
+        let mut select_has_where = false;
+        let mut count_has_where = false;
+        push_soft_delete_clause::<Self::Entity>(&mut select_qb, &mut select_has_where);
+        push_soft_delete_clause::<Self::Entity>(&mut count_qb, &mut count_has_where);
+        push_filters::<Self::Entity>(&mut select_qb, query, &mut select_has_where);
+        push_filters::<Self::Entity>(&mut count_qb, query, &mut count_has_where);
 
         if let Some(sort) = &query.sort {
             let clauses: Vec<String> = PaginationParams::parse_sort(sort)
@@ -93,97 +113,58 @@ pub trait Repository: Send + Sync {
     }
 
     async fn retrieve(&self, id: &<Self::Entity as Entity>::Id) -> ApiResult<Self::Entity> {
-        let e = <Self::Entity as Entity>::TABLE;
-        let pk = <Self::Entity as Entity>::PK_COLUMN;
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!(
-            "SELECT {} FROM {e} WHERE {pk} = ",
-            <Self::Entity as Entity>::COLUMNS.join(", ")
-        ));
-        qb.push_bind(id);
-        let mut has_where = true;
-        push_soft_delete_clause::<Self::Entity>(&mut qb, &mut has_where);
-
-        qb.build_query_as::<Self::Entity>()
-            .fetch_optional(self.database())
-            .await?
-            .ok_or(ApiError::NotFound)
+        retrieve_row::<_, Self::Entity>(self.database(), id).await
     }
 
     async fn create(&self, dto: &<Self::Entity as Entity>::CreateDto) -> ApiResult<Self::Entity> {
-        let e = <Self::Entity as Entity>::TABLE;
-        let cols = Self::insert_columns(dto);
-        if cols.is_empty() {
-            return Err(ApiError::Validation("nothing to insert".into()));
-        }
+        let cols = Self::insert_columns(dto)?;
+        insert_row::<_, Self::Entity>(self.database(), cols).await
+    }
 
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!("INSERT INTO {e} ("));
-        qb.push(cols.iter().map(|(c, _)| *c).collect::<Vec<_>>().join(", "));
-        qb.push(") VALUES (");
-        for (i, (_, value)) in cols.into_iter().enumerate() {
-            if i > 0 {
-                qb.push(", ");
-            }
-            push_typed(&mut qb, value);
-        }
-        qb.push(") RETURNING ")
-            .push(<Self::Entity as Entity>::COLUMNS.join(", "));
-
-        Ok(qb
-            .build_query_as::<Self::Entity>()
-            .fetch_one(self.database())
-            .await?)
+    /// Same as `create`, but runs against an already-open transaction so
+    /// the insert can be committed or rolled back together with whatever
+    /// a `Service`'s `before_create`/`after_create` hooks do in that same
+    /// transaction.
+    async fn create_in_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        dto: &<Self::Entity as Entity>::CreateDto,
+    ) -> ApiResult<Self::Entity> {
+        let cols = Self::insert_columns(dto)?;
+        insert_row::<_, Self::Entity>(&mut **tx, cols).await
     }
 
     async fn update(
         &self,
-
         id: &<Self::Entity as Entity>::Id,
         dto: &<Self::Entity as Entity>::UpdateDto,
     ) -> ApiResult<Self::Entity> {
-        let e = <Self::Entity as Entity>::TABLE;
-        let pk = <Self::Entity as Entity>::PK_COLUMN;
-        let cols = Self::update_columns(dto);
+        let cols = Self::update_columns(dto)?;
+        update_row::<_, Self::Entity>(self.database(), id, cols).await
+    }
 
-        if cols.is_empty() {
-            return self.retrieve(id).await;
-        }
-
-        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!("UPDATE {e} SET "));
-        for (i, (c, value)) in cols.into_iter().enumerate() {
-            if i > 0 {
-                qb.push(", ");
-            }
-            qb.push(format!("{c} = "));
-            push_typed(&mut qb, value);
-        }
-        qb.push(format!(" WHERE {pk} = "));
-        qb.push_bind(id.to_string());
-        qb.push(" RETURNING ")
-            .push(<Self::Entity as Entity>::COLUMNS.join(", "));
-
-        qb.build_query_as::<Self::Entity>()
-            .fetch_optional(self.database())
-            .await?
-            .ok_or(ApiError::NotFound)
+    /// Transactional counterpart to `update`, see `create_in_tx`.
+    async fn update_in_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        id: &<Self::Entity as Entity>::Id,
+        dto: &<Self::Entity as Entity>::UpdateDto,
+    ) -> ApiResult<Self::Entity> {
+        let cols = Self::update_columns(dto)?;
+        update_row::<_, Self::Entity>(&mut **tx, id, cols).await
     }
 
     async fn delete(&self, id: &<Self::Entity as Entity>::Id) -> ApiResult<()> {
-        let e = <Self::Entity as Entity>::TABLE;
-        let pk = <Self::Entity as Entity>::PK_COLUMN;
+        delete_row::<_, Self::Entity>(self.database(), id).await
+    }
 
-        let mut qb: QueryBuilder<Postgres> =
-            if let Some(col) = <Self::Entity as Entity>::SOFT_DELETE_COLUMN {
-                QueryBuilder::new(format!("UPDATE {e} SET {col} = now() WHERE {pk} = "))
-            } else {
-                QueryBuilder::new(format!("DELETE FROM {e} WHERE {pk} = "))
-            };
-        qb.push_bind(id);
-
-        let res = qb.build().execute(self.database()).await?;
-        if res.rows_affected() == 0 {
-            return Err(ApiError::NotFound);
-        }
-        Ok(())
+    /// Transactional counterpart to `delete`, see `create_in_tx`.
+    async fn delete_in_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        id: &<Self::Entity as Entity>::Id,
+    ) -> ApiResult<()> {
+        delete_row::<_, Self::Entity>(&mut **tx, id).await
     }
 
     async fn exists(&self, id: &<Self::Entity as Entity>::Id) -> ApiResult<bool> {
@@ -210,21 +191,21 @@ pub trait Repository: Send + Sync {
 /// into a typed `SqlValue`. Keys the DTO doesn't have (e.g. an `UpdateDto`
 /// field skipped via `skip_serializing_if`) are simply omitted from the
 /// result — that omission is what gives PATCH its "leave alone" semantics.
+/// A value that doesn't match its column's declared type is rejected with
+/// `ApiError::Validation` rather than silently coerced to a default.
 fn fields_from_dto<E: Entity>(
     dto: &(impl serde::Serialize + ?Sized),
-) -> Vec<(&'static str, SqlValue)> {
-    let json = match serde_json::to_value(dto) {
-        Ok(v) => v,
-        Err(_) => return Vec::new(),
-    };
+) -> ApiResult<Vec<(&'static str, SqlValue)>> {
+    let json = serde_json::to_value(dto)
+        .map_err(|e| ApiError::Internal(format!("failed to serialize DTO: {e}")))?;
     let Some(obj) = json.as_object() else {
-        return Vec::new();
+        return Ok(Vec::new());
     };
     E::FIELDS
         .iter()
         .filter_map(|(name, sql_type)| {
             obj.get(*name)
-                .map(|v| (*name, SqlValue::from_json(*sql_type, v)))
+                .map(|v| SqlValue::from_json(*sql_type, name, v).map(|sv| (*name, sv)))
         })
         .collect()
 }
@@ -278,10 +259,24 @@ fn push_typed(qb: &mut QueryBuilder<Postgres>, value: SqlValue) {
     }
 }
 
+/// Whether `E`'s soft-delete column (if any) is declared as `Bool` in
+/// `Entity::FIELDS`. Anything else (nullable timestamp being the common
+/// case) is treated as timestamp-flavored soft delete.
+fn soft_delete_is_bool<E: Entity>(col: &str) -> bool {
+    E::FIELDS
+        .iter()
+        .any(|(name, ty)| *name == col && *ty == SqlType::Bool)
+}
+
 fn push_soft_delete_clause<E: Entity>(qb: &mut QueryBuilder<Postgres>, has_where: &mut bool) {
     if let Some(col) = E::SOFT_DELETE_COLUMN {
         qb.push(if *has_where { " AND " } else { " WHERE " });
-        qb.push(format!("{col} IS NULL"));
+        if soft_delete_is_bool::<E>(col) {
+            // Boolean flag: NULL and false both mean "not deleted".
+            qb.push(format!("{col} IS NOT TRUE"));
+        } else {
+            qb.push(format!("{col} IS NULL"));
+        }
         *has_where = true;
     }
 }
@@ -301,23 +296,138 @@ fn push_filters<E: Entity>(
         *has_where = true;
     }
     if let Some(search) = &query.search
+        && !search.is_empty()
         && !E::SEARCHABLE.is_empty()
     {
         qb.push(if *has_where { " AND (" } else { " WHERE (" });
-        let mut sep = qb.separated(" OR ");
-        for field in E::SEARCHABLE {
-            sep.push(format!("{field} ILIKE "));
-            // Note: push_bind on separated builder binds per-field pattern.
+        let pattern = format!("%{search}%");
+        for (i, field) in E::SEARCHABLE.iter().enumerate() {
+            if i > 0 {
+                qb.push(" OR ");
+            }
+            qb.push(format!("{field} ILIKE "));
+            qb.push_bind(pattern.clone());
         }
         qb.push(")");
         *has_where = true;
-        let pattern = format!("%{search}%");
-        // Re-bind pattern for each searchable field via a second pass,
-        // since `separated()` doesn't expose per-item bind ergonomically
-        // here — in practice this is generated by the derive macro with
-        // exact placeholder handling per field.
-        let _ = pattern;
     }
+}
+
+/// Generic single-row fetch by primary key, usable against either a pool
+/// or an open transaction.
+async fn retrieve_row<'e, E, Ent>(exec: E, id: &Ent::Id) -> ApiResult<Ent>
+where
+    E: sqlx::postgres::PgExecutor<'e>,
+    Ent: Entity,
+{
+    let table = Ent::TABLE;
+    let pk = Ent::PK_COLUMN;
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!(
+        "SELECT {} FROM {table} WHERE {pk} = ",
+        Ent::COLUMNS.join(", ")
+    ));
+    qb.push_bind(id);
+    let mut has_where = true;
+    push_soft_delete_clause::<Ent>(&mut qb, &mut has_where);
+
+    qb.build_query_as::<Ent>()
+        .fetch_optional(exec)
+        .await?
+        .ok_or(ApiError::NotFound)
+}
+
+/// Generic INSERT, usable against either a pool or an open transaction.
+async fn insert_row<'e, E, Ent>(exec: E, cols: Vec<(&'static str, SqlValue)>) -> ApiResult<Ent>
+where
+    E: sqlx::postgres::PgExecutor<'e>,
+    Ent: Entity,
+{
+    let table = Ent::TABLE;
+    if cols.is_empty() {
+        return Err(ApiError::Validation("nothing to insert".into()));
+    }
+
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!("INSERT INTO {table} ("));
+    qb.push(cols.iter().map(|(c, _)| *c).collect::<Vec<_>>().join(", "));
+    qb.push(") VALUES (");
+    for (i, (_, value)) in cols.into_iter().enumerate() {
+        if i > 0 {
+            qb.push(", ");
+        }
+        push_typed(&mut qb, value);
+    }
+    qb.push(") RETURNING ").push(Ent::COLUMNS.join(", "));
+
+    Ok(qb.build_query_as::<Ent>().fetch_one(exec).await?)
+}
+
+/// Generic UPDATE by primary key, usable against either a pool or an open
+/// transaction. The id is bound with its native sqlx type (not
+/// `.to_string()`'d into a text parameter) so it matches the column's
+/// actual type — binding a `Uuid`/int PK as text made Postgres reject the
+/// comparison with an "operator does not exist" error.
+async fn update_row<'e, E, Ent>(
+    exec: E,
+    id: &Ent::Id,
+    cols: Vec<(&'static str, SqlValue)>,
+) -> ApiResult<Ent>
+where
+    E: sqlx::postgres::PgExecutor<'e>,
+    Ent: Entity,
+{
+    if cols.is_empty() {
+        return retrieve_row::<_, Ent>(exec, id).await;
+    }
+
+    let table = Ent::TABLE;
+    let pk = Ent::PK_COLUMN;
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(format!("UPDATE {table} SET "));
+    for (i, (c, value)) in cols.into_iter().enumerate() {
+        if i > 0 {
+            qb.push(", ");
+        }
+        qb.push(format!("{c} = "));
+        push_typed(&mut qb, value);
+    }
+    qb.push(format!(" WHERE {pk} = "));
+    qb.push_bind(id);
+    qb.push(" RETURNING ").push(Ent::COLUMNS.join(", "));
+
+    qb.build_query_as::<Ent>()
+        .fetch_optional(exec)
+        .await?
+        .ok_or(ApiError::NotFound)
+}
+
+/// Generic DELETE (or soft delete) by primary key, usable against either a
+/// pool or an open transaction. Soft delete now respects the column's
+/// actual type: `SET col = true` for a boolean flag, `SET col = now()`
+/// for the more common nullable-timestamp column — previously this
+/// always wrote `now()`, which fails against a boolean column.
+async fn delete_row<'e, E, Ent>(exec: E, id: &Ent::Id) -> ApiResult<()>
+where
+    E: sqlx::postgres::PgExecutor<'e>,
+    Ent: Entity,
+{
+    let table = Ent::TABLE;
+    let pk = Ent::PK_COLUMN;
+
+    let mut qb: QueryBuilder<Postgres> = if let Some(col) = Ent::SOFT_DELETE_COLUMN {
+        if soft_delete_is_bool::<Ent>(col) {
+            QueryBuilder::new(format!("UPDATE {table} SET {col} = true WHERE {pk} = "))
+        } else {
+            QueryBuilder::new(format!("UPDATE {table} SET {col} = now() WHERE {pk} = "))
+        }
+    } else {
+        QueryBuilder::new(format!("DELETE FROM {table} WHERE {pk} = "))
+    };
+    qb.push_bind(id);
+
+    let res = qb.build().execute(exec).await?;
+    if res.rows_affected() == 0 {
+        return Err(ApiError::NotFound);
+    }
+    Ok(())
 }
 
 use std::marker::PhantomData;

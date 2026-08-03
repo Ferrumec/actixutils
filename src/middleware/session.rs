@@ -249,6 +249,7 @@ where
                         }
                     };
                     let session_data = store.load(&id).await?.unwrap_or_default();
+                    req.extensions_mut().insert(session_data.clone());
                     (id, Session::new(session_data), new_session)
                 }
                 None => {

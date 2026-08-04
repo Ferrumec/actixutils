@@ -34,6 +34,7 @@ mod context;
 mod fns;
 mod idempotency;
 mod pagination;
+pub mod permission;
 mod rate_limiter;
 mod request_id;
 mod session;

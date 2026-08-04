@@ -61,7 +61,11 @@ impl SqlValue {
     /// type default. Defaulting a bad client value to `0`/`false`/
     /// `Uuid::nil()`/the epoch is worse than rejecting the request: it
     /// writes plausible-looking but wrong data instead of surfacing a 422.
-    pub fn from_json(sql_type: SqlType, field_name: &str, value: &serde_json::Value) -> ApiResult<Self> {
+    pub fn from_json(
+        sql_type: SqlType,
+        field_name: &str,
+        value: &serde_json::Value,
+    ) -> ApiResult<Self> {
         if value.is_null() {
             return Ok(SqlValue::Null);
         }

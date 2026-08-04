@@ -26,7 +26,6 @@ sqlx = { version = "0.9", optional = true, features = ["postgres",  "uuid","chro
 thiserror = { version = "2.0.18"}
 rust_decimal = { version = "1.42.1", optional = true }
 viewset-macros = { version = "0.1.2", optional = true }
-actix-router = "0.5.4"
 
 [features]
 es = ["typed-eventbus"]

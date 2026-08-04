@@ -189,7 +189,6 @@ dependencies = [
 name = "actixutils"
 version = "0.4.1"
 dependencies = [
- "actix-router",
  "actix-web",
  "anyhow",
  "async-trait",

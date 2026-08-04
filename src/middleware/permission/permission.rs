@@ -20,7 +20,7 @@
 //! assert!(set.find(&Method::DELETE, "/users").is_none());
 //! ```
 
-use actix_router::ResourceDef;
+use actix_web::dev::ResourceDef;
 use actix_web::http::Method;
 use serde::Deserialize;
 use std::collections::HashSet;

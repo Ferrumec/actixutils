@@ -34,12 +34,13 @@ mod context;
 mod fns;
 mod idempotency;
 mod pagination;
-pub mod permission;
+mod permission;
 mod rate_limiter;
 mod request_id;
 mod session;
 #[cfg(test)]
 mod test_session;
+pub use permission::{PermissionError,Permissions,Permission,PermissionSet,Principal};
 pub use attach_local::{AttachLocal, SetLocal};
 pub use auth::Auth;
 pub use constant_time::ResponseEqualizer;

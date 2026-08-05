@@ -1,10 +1,22 @@
 [package]
 name = "actixutils"
-version = "0.4.2"
+version = "0.4.3"
 edition = "2024"
 description = "Reusable middleware and request utilities for Actix Web"
 license = "MIT"
 repository = "https://github.com/Ferrumec/actixutils"
+keywords = [
+    "actix-web",
+    "middleware",
+    "api",
+    "authentication",
+    "authorization",
+]
+categories = [
+    "web-programming",
+    "web-programming::http-server",
+    "authentication",
+]
 
 [dependencies]
 actix-web = "4.12.1"

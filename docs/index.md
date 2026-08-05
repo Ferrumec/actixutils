@@ -146,6 +146,8 @@ Cookie-based, server-side sessions live in `middleware`, **not** `extractors`:
 | `Session<T>` / `SessionMiddleware` | Cookie-based server-side sessions (see above) |
 | `AttachLocal<T>` / `SetLocal` | Generic helper: extracts a `T` up front, then runs the rest of the request inside `T::scope(...)` — the mechanism `PaginationMiddleware` is built on |
 
+[Getting started with middlewares](middleware)
+
 ## The `viewset` module (feature `viewset`)
 
 A small, Django-REST-Framework-inspired CRUD toolkit for building admin-style REST

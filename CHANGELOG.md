@@ -1,3 +1,30 @@
+## [0.4.2] - 2026-08-05
+
+### 🚀 Features
+
+- Added permission middleware
+- Added permission middleware
+
+### 🐛 Bug Fixes
+
+- *(viewset)* [**breaking**] Repair broken filtering, search, soft-delete, and PK binding
+- Made SessionMiddleware<T> to insert T into request extentions
+- Replaced actix-router with actix-web::dev
+- Reexported permission
+
+### 📚 Documentation
+
+- Added docs for viewset
+- Linked viewset with index
+- Linked viewset with index
+- Added middlewares to docs
+- Added middlewares to docs
+- Added middlewares to docs
+
+### ⚙️ Miscellaneous Tasks
+
+- *(docs)* Added viewset docs index
+- *(docs)* Added viewset docs index
 ## [0.4] - 2026-07-31
 ### Fixed
 
@@ -193,3 +220,4 @@
 - Fixed viewset-macro version
 - *(release)* Bumped to v0.2
 ## [0.1.0] - 2026-06-24
+

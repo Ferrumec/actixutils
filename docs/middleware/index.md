@@ -119,6 +119,6 @@ RequestId → Auth<Identity> → ReadContext<Identity> → Permissions<Identity>
 - A single "does this bit exist" gate without a full `PermissionSet` →
   `authority(bit)` / `identity` from `fns.rs`.
 
-See **TUTORIALS.md** for a walkthrough of assembling several of these into a
-real app, and **EXAMPLES.md** for focused, copy-pasteable snippets for each
+See [TUTORIALS](TUTORIALS.md) for a walkthrough of assembling several of these into a
+real app, and [EXAMPLES](EXAMPLES.md) for focused, copy-pasteable snippets for each
 middleware.

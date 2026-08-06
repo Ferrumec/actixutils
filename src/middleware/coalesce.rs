@@ -134,9 +134,8 @@ where
                         if !self.completed {
                             let mut res = self.flight.result.lock().unwrap();
                             if res.is_none() {
-                                *res = Some(Err(
-                                    "Leader execution cancelled or panicked".to_string()
-                                ));
+                                *res =
+                                    Some(Err("Leader execution cancelled or panicked".to_string()));
                             }
                             drop(res);
                             self.flight.notify.notify_waiters();
@@ -197,7 +196,7 @@ where
                 guard.completed = true;
 
                 // Build the leader's response.
-                                // Build the leader's response.
+                // Build the leader's response.
                 match coalesced_result {
                     Ok(coalesced) => {
                         let req = req_opt.expect("leader Ok path has req");
@@ -210,7 +209,6 @@ where
                     }
                     Err(err) => Err(err),
                 }
-
             } else {
                 loop {
                     {
@@ -238,4 +236,3 @@ where
         })
     }
 }
-

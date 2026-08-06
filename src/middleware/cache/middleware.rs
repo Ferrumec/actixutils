@@ -8,14 +8,14 @@
 //! for choosing URLs that identify a shareable resource (e.g.
 //! `/users/123/orders`) before applying this middleware to a route.
 
-use std::future::{ready, Ready};
+use std::future::{Ready, ready};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
 use actix_web::body::{BodySize, BoxBody, MessageBody};
-use actix_web::dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform};
-use actix_web::http::{header, Method};
+use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform, forward_ready};
+use actix_web::http::{Method, header};
 use actix_web::{Error, HttpResponse};
 use futures_util::future::LocalBoxFuture;
 
@@ -202,7 +202,7 @@ mod tests {
     use super::*;
     use crate::middleware::cache::memory::MemoryCache;
     use actix_web::http::StatusCode;
-    use actix_web::{test, web, App, HttpResponse};
+    use actix_web::{App, HttpResponse, test, web};
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     fn store() -> Arc<dyn CacheStore> {
@@ -257,7 +257,11 @@ mod tests {
         let res2 = test::call_service(&app, req2).await;
 
         assert!(res2.status().is_success());
-        assert_eq!(counter.load(Ordering::SeqCst), 1, "second request must be served from cache");
+        assert_eq!(
+            counter.load(Ordering::SeqCst),
+            1,
+            "second request must be served from cache"
+        );
     }
 
     #[actix_web::test]
@@ -291,18 +295,24 @@ mod tests {
 
         test::call_service(
             &app,
-            test::TestRequest::get().uri("/products?page=1").to_request(),
+            test::TestRequest::get()
+                .uri("/products?page=1")
+                .to_request(),
         )
         .await;
         test::call_service(
             &app,
-            test::TestRequest::get().uri("/products?page=2").to_request(),
+            test::TestRequest::get()
+                .uri("/products?page=2")
+                .to_request(),
         )
         .await;
         // Re-request page=1: should be a cache hit, no new service call.
         test::call_service(
             &app,
-            test::TestRequest::get().uri("/products?page=1").to_request(),
+            test::TestRequest::get()
+                .uri("/products?page=1")
+                .to_request(),
         )
         .await;
 
@@ -352,10 +362,22 @@ mod tests {
         )
         .await;
 
-        test::call_service(&app, test::TestRequest::post().uri("/products").to_request()).await;
-        test::call_service(&app, test::TestRequest::post().uri("/products").to_request()).await;
+        test::call_service(
+            &app,
+            test::TestRequest::post().uri("/products").to_request(),
+        )
+        .await;
+        test::call_service(
+            &app,
+            test::TestRequest::post().uri("/products").to_request(),
+        )
+        .await;
 
-        assert_eq!(counter.load(Ordering::SeqCst), 2, "POST must never be cached");
+        assert_eq!(
+            counter.load(Ordering::SeqCst),
+            2,
+            "POST must never be cached"
+        );
     }
 
     #[actix_web::test]
@@ -373,7 +395,11 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(60)).await;
         test::call_service(&app, test::TestRequest::get().uri("/products").to_request()).await;
 
-        assert_eq!(counter.load(Ordering::SeqCst), 2, "expired entry must be refetched");
+        assert_eq!(
+            counter.load(Ordering::SeqCst),
+            2,
+            "expired entry must be refetched"
+        );
     }
 
     #[actix_web::test]
@@ -389,7 +415,8 @@ mod tests {
         .await;
 
         test::call_service(&app, test::TestRequest::get().uri("/partial").to_request()).await;
-        let res = test::call_service(&app, test::TestRequest::get().uri("/partial").to_request()).await;
+        let res =
+            test::call_service(&app, test::TestRequest::get().uri("/partial").to_request()).await;
 
         assert_eq!(res.status().as_u16(), 206);
     }
@@ -397,7 +424,9 @@ mod tests {
     #[actix_web::test]
     async fn cached_headers_are_preserved() {
         async fn handler() -> HttpResponse {
-            HttpResponse::Ok().insert_header(("X-Custom", "value")).finish()
+            HttpResponse::Ok()
+                .insert_header(("X-Custom", "value"))
+                .finish()
         }
         let app = test::init_service(
             App::new()
@@ -407,7 +436,8 @@ mod tests {
         .await;
 
         test::call_service(&app, test::TestRequest::get().uri("/products").to_request()).await;
-        let res = test::call_service(&app, test::TestRequest::get().uri("/products").to_request()).await;
+        let res =
+            test::call_service(&app, test::TestRequest::get().uri("/products").to_request()).await;
 
         assert_eq!(res.headers().get("X-Custom").unwrap(), "value");
     }
@@ -423,7 +453,8 @@ mod tests {
         .await;
 
         test::call_service(&app, test::TestRequest::get().uri("/products").to_request()).await;
-        let res = test::call_service(&app, test::TestRequest::get().uri("/products").to_request()).await;
+        let res =
+            test::call_service(&app, test::TestRequest::get().uri("/products").to_request()).await;
         let body = test::read_body(res).await;
 
         assert_eq!(body, "hello");
@@ -607,7 +638,11 @@ mod tests {
 
         for i in 0..keys.len() {
             for j in (i + 1)..keys.len() {
-                assert_ne!(keys[i], keys[j], "keys must be distinct: {:?} vs {:?}", keys[i], keys[j]);
+                assert_ne!(
+                    keys[i], keys[j],
+                    "keys must be distinct: {:?} vs {:?}",
+                    keys[i], keys[j]
+                );
             }
         }
     }

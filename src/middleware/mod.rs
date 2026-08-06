@@ -43,10 +43,11 @@ mod session;
 mod test_coalesce;
 #[cfg(test)]
 mod test_session;
-pub use coalesce::Singleflight;
+mod timeout;
 pub use attach_local::{AttachLocal, SetLocal};
 pub use auth::Auth;
 pub use cache::{Cache, CacheMiddleware, CacheStore, CachedResponse, MemoryCache};
+pub use coalesce::Singleflight;
 pub use constant_time::ResponseEqualizer;
 #[cfg(feature = "es")]
 pub use context::{Context, GetId, ReadContext};
@@ -58,3 +59,4 @@ pub use permission::{Permission, PermissionError, PermissionSet, Permissions, Pr
 pub use rate_limiter::RateLimiter;
 pub use request_id::{RequestId, RequestIdStr};
 pub use session::{Session, SessionMiddleware};
+pub use timeout::TimeoutMiddleware;

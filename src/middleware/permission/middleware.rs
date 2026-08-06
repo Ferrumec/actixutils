@@ -215,13 +215,13 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::Principal;
     use super::*;
+    use super::{PermissionSet, Permissions};
+    use crate::middleware::permission::Permission;
     use actix_web::dev::{Service, Transform};
     use actix_web::{App, HttpResponse, http::Method, test, web};
-use std::task::{Poll,Context};
-    use crate::middleware::permission::Permission;
-    use super::{Permissions, PermissionSet};
-    use super::Principal;
+    use std::task::{Context, Poll};
 
     #[derive(Clone, Debug)]
     struct User {

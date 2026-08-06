@@ -1,8 +1,8 @@
 //! Types used by the HTTP cache middleware.
 
-use actix_web::http::header::{HeaderName, HeaderValue};
-use actix_web::http::StatusCode;
 use actix_web::HttpResponse;
+use actix_web::http::StatusCode;
+use actix_web::http::header::{HeaderName, HeaderValue};
 use bytes::Bytes;
 
 /// A fully-buffered HTTP response, suitable for storing in a [`CacheStore`]

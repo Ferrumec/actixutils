@@ -107,7 +107,10 @@ impl CacheStore for MemoryCache {
         drop(entries);
 
         if is_new_key {
-            self.insertion_order.write().await.push_back(key.to_string());
+            self.insertion_order
+                .write()
+                .await
+                .push_back(key.to_string());
         }
     }
 

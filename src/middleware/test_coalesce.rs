@@ -1,20 +1,22 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use actix_web::{App, HttpResponse, Responder, test};
+    use crate::middleware::Singleflight;
+    use actix_web::{App, HttpResponse, Responder, test, web};
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::time::Duration;
     use tokio::sync::Barrier;
 
     async fn test_handler(
-        counter: web::Data<Arc<AtomicUsize>>,
-        barrier: web::Data<Arc<Barrier>>,
-    ) -> impl Responder {
-        counter.fetch_add(1, Ordering::SeqCst);
-        barrier.wait().await;
-        HttpResponse::Ok().body("coalesced response")
-    }
+    counter: web::Data<Arc<AtomicUsize>>,
+) -> impl Responder {
+    counter.fetch_add(1, Ordering::SeqCst);
+
+    // Give other concurrently-polled requests an opportunity to
+    // reach the coalescing middleware before this request completes.
+    tokio::task::yield_now().await;
+
+    HttpResponse::Ok().body("coalesced response")
+}
 
     #[actix_web::test]
     async fn test_single_request_normal_execution() {
@@ -36,40 +38,34 @@ mod tests {
         assert_eq!(counter.load(Ordering::SeqCst), 1);
     }
 
-    #[actix_web::test]
-    async fn test_concurrent_requests_same_key_execute_once() {
-        let counter = Arc::new(AtomicUsize::new(0));
-        let barrier = Arc::new(Barrier::new(3)); // Leader + 2 followers
+ #[actix_web::test]
+async fn test_concurrent_requests_same_key_execute_once() {
+    let counter = Arc::new(AtomicUsize::new(0));
 
-        let app = test::init_service(
-            App::new()
-                .app_data(web::Data::new(counter.clone()))
-                .app_data(web::Data::new(barrier.clone()))
-                .wrap(Singleflight::new(|req| req.uri().to_string()))
-                .route("/", web::get().to(test_handler)),
-        )
-        .await;
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(counter.clone()))
+            .wrap(Singleflight::new(|req| req.uri().to_string()))
+            .route("/", web::get().to(test_handler)),
+    )
+    .await;
 
-        let req1 = test::TestRequest::get().uri("/").to_request();
-        let req2 = test::TestRequest::get().uri("/").to_request();
-        let req3 = test::TestRequest::get().uri("/").to_request();
+    let req1 = test::TestRequest::get().uri("/").to_request();
+    let req2 = test::TestRequest::get().uri("/").to_request();
+    let req3 = test::TestRequest::get().uri("/").to_request();
 
-        let srv = app.clone();
-        let fut1 = tokio::spawn(async move { test::call_service(&srv, req1).await });
-        let srv = app.clone();
-        let fut2 = tokio::spawn(async move { test::call_service(&srv, req2).await });
-        let srv = app.clone();
-        let fut3 = tokio::spawn(async move { test::call_service(&srv, req3).await });
+    let fut1 = test::call_service(&app, req1);
+    let fut2 = test::call_service(&app, req2);
+    let fut3 = test::call_service(&app, req3);
 
-        let (res1, res2, res3) = tokio::join!(fut1, fut2, fut3);
+    let (res1, res2, res3) = tokio::join!(fut1, fut2, fut3);
 
-        assert!(res1.unwrap().status().is_success());
-        assert!(res2.unwrap().status().is_success());
-        assert!(res3.unwrap().status().is_success());
+    assert!(res1.status().is_success());
+    assert!(res2.status().is_success());
+    assert!(res3.status().is_success());
 
-        // Exactly one downstream execution should have occurred despite 3 concurrent requests
-        assert_eq!(counter.load(Ordering::SeqCst), 1);
-    }
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
+}
 
     #[actix_web::test]
     async fn test_different_keys_execute_independently() {

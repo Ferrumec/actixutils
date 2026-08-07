@@ -1,5 +1,7 @@
-use super::session::{Session, SessionMiddleware, SessionStore};
-use actix_web::Error; // <-- this one
+use crate::extractors::Session;
+use crate::middleware::SessionMiddleware;
+use crate::locals::SessionStore;
+use actix_web::Error; 
 use actix_web::{App, HttpResponse, Responder, test, web};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

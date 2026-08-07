@@ -1,9 +1,9 @@
 use actix_web::{
+    Error,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
     error::ErrorGatewayTimeout,
-    Error,
 };
-use futures::future::{ok, Ready};
+use futures::future::{Ready, ok};
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -53,8 +53,7 @@ where
 {
     type Response = ServiceResponse<B>;
     type Error = Error;
-    type Future =
-        Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 
     fn poll_ready(&self, ctx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.service.poll_ready(ctx)

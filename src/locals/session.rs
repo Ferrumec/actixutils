@@ -1,6 +1,6 @@
 use actix_web::Error;
-use uuid::Uuid;
 use async_trait::async_trait;
+use uuid::Uuid;
 /// Async backing store for [`SessionMiddleware`].
 ///
 /// Implement this on your own persistence layer (database, Redis, in-memory map, ...).

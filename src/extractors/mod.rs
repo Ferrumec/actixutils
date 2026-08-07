@@ -11,6 +11,8 @@
 #[cfg(feature = "jwt")]
 mod auth;
 mod filters;
+mod session;
 #[cfg(feature = "jwt")]
 pub use auth::Jwt;
 pub use filters::Filters;
+pub use session::Session;

@@ -58,5 +58,5 @@ pub use pagination::{Pagination, PaginationMiddleware};
 pub use permission::{Permission, PermissionError, PermissionSet, Permissions, Principal};
 pub use rate_limiter::RateLimiter;
 pub use request_id::{RequestId, RequestIdStr};
-pub use session::{Session, SessionMiddleware};
+pub use session::SessionMiddleware;
 pub use timeout::TimeoutMiddleware;

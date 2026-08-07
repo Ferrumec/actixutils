@@ -13,7 +13,6 @@
 //! | [`HS256Signer`] | HMAC-SHA-256 signer + validator |
 //! | [`RS256Signer`] / [`RS256Validator`] | RSA-SHA-256 signer / validator |
 //! | [`Provider<T>`] | Lightweight dependency-injection trait |
-//! | [`SessionStore<T>`] | General-purpose synchronous session-store trait (not used by [`crate::middleware::Session`], which has its own internal store trait) |
 //! | [`IdempotencyStore`] | Backing store trait for the idempotency middleware |
 //! | [`pagination::Pagination`] | Task-local pagination snapshot |
 //! | [`context::Context`] (feature `es`) | Task-scoped event-publishing context |
@@ -26,7 +25,7 @@ pub mod pagination;
 mod provider;
 #[cfg(feature = "jwt")]
 mod rs256;
-mod session_store;
+mod session;
 mod signer_core;
 
 pub mod rate_limiter;
@@ -42,7 +41,7 @@ pub use pagination::Pagination;
 pub use provider::Provider;
 #[cfg(feature = "jwt")]
 pub use rs256::{RS256Signer, RS256Validator};
-pub use session_store::SessionStore;
+pub use session::SessionStore;
 pub use signer_core::{Sign, Validate};
 
 #[cfg(feature = "es")]

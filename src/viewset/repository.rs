@@ -2,6 +2,7 @@ use super::entity::Entity;
 use super::error::{ApiError, ApiResult};
 use super::pagination::{PaginationParams, QueryParams, SortDirection};
 use super::sql::{SqlType, SqlValue};
+use super::cache::{DefaultCache,Cache};
 use async_trait::async_trait;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 
@@ -12,7 +13,7 @@ use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 #[async_trait]
 pub trait Repository: Send + Sync {
     type Entity: Entity;
-
+    type Cache: Cache<<<Self as Repository>::Entity as Entity>::Id, Self::Entity>;
     fn database(&self) -> &PgPool;
 
     /// Begin a transaction against this repository's pool. Used by the
@@ -446,8 +447,9 @@ impl<E: Entity> From<PgPool> for DefaultRepo<E> {
     }
 }
 
-impl<E: Entity> Repository for DefaultRepo<E> {
+impl<E: Entity + Clone> Repository for DefaultRepo<E> {
     type Entity = E;
+    type Cache = DefaultCache<E::Id,E>;
     fn database(&self) -> &PgPool {
         &self.db
     }

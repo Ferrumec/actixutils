@@ -99,14 +99,13 @@ fn is_cacheable(resp: &HttpResponse) -> bool {
         return false;
     }
 
-    if let Some(cache_control) = resp.headers().get(header::CACHE_CONTROL) {
-        if let Ok(value) = cache_control.to_str() {
+    if let Some(cache_control) = resp.headers().get(header::CACHE_CONTROL)
+        && let Ok(value) = cache_control.to_str() {
             let value = value.to_ascii_lowercase();
             if value.contains("no-store") || value.contains("private") {
                 return false;
             }
         }
-    }
 
     true
 }

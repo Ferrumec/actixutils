@@ -11,6 +11,7 @@
 //! implementations, so a new entity only needs a handful of `impl` blocks
 //! plus entity metadata to get a fully working CRUD API.
 
+mod cache;
 mod context;
 mod entity;
 mod error;
@@ -20,6 +21,7 @@ mod service;
 mod sql;
 #[allow(clippy::module_inception)]
 mod viewset;
+pub use cache::{DefaultCache,Cache};
 pub use context::RequestContext;
 pub use entity::Entity;
 pub use error::ApiError;

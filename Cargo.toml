@@ -1,6 +1,6 @@
 [package]
 name = "actixutils"
-version = "0.4.3"
+version = "0.5.0"
 edition = "2024"
 description = "Reusable middleware and request utilities for Actix Web"
 license = "MIT"
@@ -34,7 +34,7 @@ tracing = "0.1.44"
 uuid = { version = "1.23.1", features = ["serde", "v4"] }
 typed-eventbus = { version = "0.2.1", optional = true }
 serde_json = { version = "1.0.150"}
-sqlx = { version = "0.9", optional = true, features = ["postgres",  "uuid","chrono","rust_decimal","sqlite"] }
+sqlx = { version = "0.9", optional = true, features = ["postgres",  "uuid","chrono","rust_decimal"] }
 thiserror = { version = "2.0.18"}
 rust_decimal = { version = "1.42.1", optional = true }
 viewset-macros = { version = "0.1.2", optional = true }

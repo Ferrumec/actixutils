@@ -5,7 +5,7 @@ use super::sql::{SqlType, SqlValue};
 use super::cache::{DefaultCache,Cache};
 use async_trait::async_trait;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
-
+use std::sync::Arc;
 /// Database access only: no validation, authorization, or business rules.
 /// Every method has a default implementation built from `Entity` metadata
 /// via a dynamic `QueryBuilder`; override any of them when the generated
@@ -13,8 +13,9 @@ use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 #[async_trait]
 pub trait Repository: Send + Sync {
     type Entity: Entity;
-    type Cache: Cache<<<Self as Repository>::Entity as Entity>::Id, Self::Entity>;
     fn database(&self) -> &PgPool;
+    
+    fn cache(&self) ->Arc<dyn Cache<<<Self as Repository>::Entity as Entity>::Id, Self::Entity>>;
 
     /// Begin a transaction against this repository's pool. Used by the
     /// default `Service::create`/`update`/`delete` implementations so a
@@ -113,19 +114,42 @@ pub trait Repository: Send + Sync {
         Ok((items, total))
     }
 
+    /// Cache-aside read: a hit returns straight from `cache()` without
+    /// touching the database; a miss falls through to the row fetch and
+    /// populates the cache before returning. Safe to populate
+    /// unconditionally here — unlike the `_in_tx` write paths below,
+    /// there's no open transaction that could still roll back and turn
+    /// this into a phantom entry.
     async fn retrieve(&self, id: &<Self::Entity as Entity>::Id) -> ApiResult<Self::Entity> {
-        retrieve_row::<_, Self::Entity>(self.database(), id).await
+        if let Some(hit) = self.cache().get(id) {
+            return Ok(hit);
+        }
+        let entity = retrieve_row::<_, Self::Entity>(self.database(), id).await?;
+        self.cache().set(entity.id(), entity.clone());
+        Ok(entity)
     }
 
+    /// Runs as its own auto-committed statement (no explicit `BEGIN`), so
+    /// by the time this returns the row is durably written and it's safe
+    /// to populate the cache with it directly (write-through).
     async fn create(&self, dto: &<Self::Entity as Entity>::CreateDto) -> ApiResult<Self::Entity> {
         let cols = Self::insert_columns(dto)?;
-        insert_row::<_, Self::Entity>(self.database(), cols).await
+        let entity = insert_row::<_, Self::Entity>(self.database(), cols).await?;
+        self.cache().set(entity.id(), entity.clone());
+        Ok(entity)
     }
 
     /// Same as `create`, but runs against an already-open transaction so
     /// the insert can be committed or rolled back together with whatever
     /// a `Service`'s `before_create`/`after_create` hooks do in that same
     /// transaction.
+    ///
+    /// Deliberately does **not** touch the cache. The row isn't committed
+    /// yet at this point — if a later hook in the same transaction fails
+    /// and the caller rolls back, a cache entry set here would describe an
+    /// id that never actually existed. Once the transaction commits, a
+    /// subsequent `retrieve()` will populate the cache normally via the
+    /// cache-aside path above.
     async fn create_in_tx(
         &self,
         tx: &mut Transaction<'_, Postgres>,
@@ -135,16 +159,35 @@ pub trait Repository: Send + Sync {
         insert_row::<_, Self::Entity>(&mut **tx, cols).await
     }
 
+    /// Auto-committed like `create`, so the write-through cache update
+    /// below is ordered safely after the durable write.
     async fn update(
         &self,
         id: &<Self::Entity as Entity>::Id,
         dto: &<Self::Entity as Entity>::UpdateDto,
     ) -> ApiResult<Self::Entity> {
         let cols = Self::update_columns(dto)?;
-        update_row::<_, Self::Entity>(self.database(), id, cols).await
+        let entity = update_row::<_, Self::Entity>(self.database(), id, cols).await?;
+        self.cache().set(entity.id(), entity.clone());
+        Ok(entity)
     }
 
     /// Transactional counterpart to `update`, see `create_in_tx`.
+    ///
+    /// Invalidates (rather than repopulates) the cache entry: unlike
+    /// `create_in_tx`, there's a previously-cached value to worry about
+    /// here, and holding onto a stale one is worse than dropping it.
+    /// Overwriting it with the *new* row would be worse still — same
+    /// rollback risk as `create_in_tx` — so this drops the entry and lets
+    /// the next `retrieve()` repopulate it post-commit.
+    ///
+    /// Known race: a concurrent `retrieve()` between this invalidation and
+    /// the caller's `tx.commit()` will still observe the pre-update row
+    /// (Postgres read-committed semantics) and re-cache *that*, leaving a
+    /// stale entry after commit. Closing that window fully needs a
+    /// post-commit invalidation from the `Service` layer, which owns the
+    /// commit point — worth revisiting if strict read-after-write
+    /// consistency through the cache becomes a requirement.
     async fn update_in_tx(
         &self,
         tx: &mut Transaction<'_, Postgres>,
@@ -152,20 +195,30 @@ pub trait Repository: Send + Sync {
         dto: &<Self::Entity as Entity>::UpdateDto,
     ) -> ApiResult<Self::Entity> {
         let cols = Self::update_columns(dto)?;
-        update_row::<_, Self::Entity>(&mut **tx, id, cols).await
+        let entity = update_row::<_, Self::Entity>(&mut **tx, id, cols).await?;
+        self.cache().delete(id);
+        Ok(entity)
     }
 
+    /// Auto-committed like `create`/`update`, so invalidating the cache
+    /// entry here is correctly ordered after the durable delete.
     async fn delete(&self, id: &<Self::Entity as Entity>::Id) -> ApiResult<()> {
-        delete_row::<_, Self::Entity>(self.database(), id).await
+        delete_row::<_, Self::Entity>(self.database(), id).await?;
+        self.cache().delete(id);
+        Ok(())
     }
 
-    /// Transactional counterpart to `delete`, see `create_in_tx`.
+    /// Transactional counterpart to `delete`, see `create_in_tx` and
+    /// `update_in_tx` for why this invalidates rather than caching
+    /// anything, and for the same pre-commit race `update_in_tx` has.
     async fn delete_in_tx(
         &self,
         tx: &mut Transaction<'_, Postgres>,
         id: &<Self::Entity as Entity>::Id,
     ) -> ApiResult<()> {
-        delete_row::<_, Self::Entity>(&mut **tx, id).await
+        delete_row::<_, Self::Entity>(&mut **tx, id).await?;
+        self.cache().delete(id);
+        Ok(())
     }
 
     async fn exists(&self, id: &<Self::Entity as Entity>::Id) -> ApiResult<bool> {
@@ -435,6 +488,7 @@ use std::marker::PhantomData;
 
 pub struct DefaultRepo<E: Entity> {
     db: PgPool,
+    cache:Arc<DefaultCache<E::Id,E>>,
     _marker: PhantomData<E>,
 }
 
@@ -443,13 +497,16 @@ impl<E: Entity> From<PgPool> for DefaultRepo<E> {
         Self {
             db,
             _marker: PhantomData,
+            cache:Arc::new(DefaultCache::new(1000))
         }
     }
 }
 
-impl<E: Entity + Clone> Repository for DefaultRepo<E> {
+impl<E: Entity> Repository for DefaultRepo<E> {
     type Entity = E;
-    type Cache = DefaultCache<E::Id,E>;
+    fn cache(&self)->Arc<dyn super::cache::Cache<<E as Entity>::Id, E> + 'static>{
+        self.cache.clone()
+    }
     fn database(&self) -> &PgPool {
         &self.db
     }

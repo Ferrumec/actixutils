@@ -12,7 +12,14 @@ use std::str::FromStr;
 /// (known at compile time) or an associated type. The `#[derive(Entity)]`
 /// macro from the `viewset-macros` crate generates this impl from struct
 /// field/attribute annotations — see `examples/product.rs`.
-pub trait Entity: for<'r> FromRow<'r, PgRow> + Serialize + Send + Sync + Unpin + 'static {
+///
+/// `Clone` is a supertrait (not just a `DefaultRepo` bound) because the
+/// default `Repository` methods are cache-aware: a cache hit/populate
+/// needs to hand back an owned value to the caller while also stashing an
+/// owned copy in `Cache<Id, Self>`, which isn't possible without it.
+pub trait Entity:
+    for<'r> FromRow<'r, PgRow> + Serialize + Clone + Send + Sync + Unpin + 'static
+{
     /// Primary key type (Uuid, i64, ...).
     type Id: for<'a> sqlx::Encode<'a, sqlx::Postgres>
         + sqlx::Type<sqlx::Postgres>

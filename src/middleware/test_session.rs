@@ -1,7 +1,7 @@
 use crate::extractors::Session;
-use crate::middleware::SessionMiddleware;
 use crate::locals::SessionStore;
-use actix_web::Error; 
+use crate::middleware::SessionMiddleware;
+use actix_web::Error;
 use actix_web::{App, HttpResponse, Responder, test, web};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

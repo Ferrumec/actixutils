@@ -6,17 +6,15 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use tokio::sync::Barrier;
 
-    async fn test_handler(
-    counter: web::Data<Arc<AtomicUsize>>,
-) -> impl Responder {
-    counter.fetch_add(1, Ordering::SeqCst);
+    async fn test_handler(counter: web::Data<Arc<AtomicUsize>>) -> impl Responder {
+        counter.fetch_add(1, Ordering::SeqCst);
 
-    // Give other concurrently-polled requests an opportunity to
-    // reach the coalescing middleware before this request completes.
-    tokio::task::yield_now().await;
+        // Give other concurrently-polled requests an opportunity to
+        // reach the coalescing middleware before this request completes.
+        tokio::task::yield_now().await;
 
-    HttpResponse::Ok().body("coalesced response")
-}
+        HttpResponse::Ok().body("coalesced response")
+    }
 
     #[actix_web::test]
     async fn test_single_request_normal_execution() {
@@ -38,34 +36,34 @@ mod tests {
         assert_eq!(counter.load(Ordering::SeqCst), 1);
     }
 
- #[actix_web::test]
-async fn test_concurrent_requests_same_key_execute_once() {
-    let counter = Arc::new(AtomicUsize::new(0));
+    #[actix_web::test]
+    async fn test_concurrent_requests_same_key_execute_once() {
+        let counter = Arc::new(AtomicUsize::new(0));
 
-    let app = test::init_service(
-        App::new()
-            .app_data(web::Data::new(counter.clone()))
-            .wrap(Singleflight::new(|req| req.uri().to_string()))
-            .route("/", web::get().to(test_handler)),
-    )
-    .await;
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(counter.clone()))
+                .wrap(Singleflight::new(|req| req.uri().to_string()))
+                .route("/", web::get().to(test_handler)),
+        )
+        .await;
 
-    let req1 = test::TestRequest::get().uri("/").to_request();
-    let req2 = test::TestRequest::get().uri("/").to_request();
-    let req3 = test::TestRequest::get().uri("/").to_request();
+        let req1 = test::TestRequest::get().uri("/").to_request();
+        let req2 = test::TestRequest::get().uri("/").to_request();
+        let req3 = test::TestRequest::get().uri("/").to_request();
 
-    let fut1 = test::call_service(&app, req1);
-    let fut2 = test::call_service(&app, req2);
-    let fut3 = test::call_service(&app, req3);
+        let fut1 = test::call_service(&app, req1);
+        let fut2 = test::call_service(&app, req2);
+        let fut3 = test::call_service(&app, req3);
 
-    let (res1, res2, res3) = tokio::join!(fut1, fut2, fut3);
+        let (res1, res2, res3) = tokio::join!(fut1, fut2, fut3);
 
-    assert!(res1.status().is_success());
-    assert!(res2.status().is_success());
-    assert!(res3.status().is_success());
+        assert!(res1.status().is_success());
+        assert!(res2.status().is_success());
+        assert!(res3.status().is_success());
 
-    assert_eq!(counter.load(Ordering::SeqCst), 1);
-}
+        assert_eq!(counter.load(Ordering::SeqCst), 1);
+    }
 
     #[actix_web::test]
     async fn test_different_keys_execute_independently() {

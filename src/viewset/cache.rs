@@ -18,9 +18,7 @@ where
 {
     pub fn new(max_capacity: u64) -> Self {
         Self {
-            cache: MokaCache::builder()
-                .max_capacity(max_capacity)
-                .build(),
+            cache: MokaCache::builder().max_capacity(max_capacity).build(),
         }
     }
 }

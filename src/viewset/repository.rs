@@ -1,8 +1,8 @@
+use super::cache::{Cache, DefaultCache};
 use super::entity::Entity;
 use super::error::{ApiError, ApiResult};
 use super::pagination::{PaginationParams, QueryParams, SortDirection};
 use super::sql::{SqlType, SqlValue};
-use super::cache::{DefaultCache,Cache};
 use async_trait::async_trait;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 use std::sync::Arc;
@@ -14,8 +14,8 @@ use std::sync::Arc;
 pub trait Repository: Send + Sync {
     type Entity: Entity;
     fn database(&self) -> &PgPool;
-    
-    fn cache(&self) ->Arc<dyn Cache<<<Self as Repository>::Entity as Entity>::Id, Self::Entity>>;
+
+    fn cache(&self) -> Arc<dyn Cache<<<Self as Repository>::Entity as Entity>::Id, Self::Entity>>;
 
     /// Begin a transaction against this repository's pool. Used by the
     /// default `Service::create`/`update`/`delete` implementations so a
@@ -488,7 +488,7 @@ use std::marker::PhantomData;
 
 pub struct DefaultRepo<E: Entity> {
     db: PgPool,
-    cache:Arc<DefaultCache<E::Id,E>>,
+    cache: Arc<DefaultCache<E::Id, E>>,
     _marker: PhantomData<E>,
 }
 
@@ -497,14 +497,14 @@ impl<E: Entity> From<PgPool> for DefaultRepo<E> {
         Self {
             db,
             _marker: PhantomData,
-            cache:Arc::new(DefaultCache::new(1000))
+            cache: Arc::new(DefaultCache::new(1000)),
         }
     }
 }
 
 impl<E: Entity> Repository for DefaultRepo<E> {
     type Entity = E;
-    fn cache(&self)->Arc<dyn super::cache::Cache<<E as Entity>::Id, E> + 'static>{
+    fn cache(&self) -> Arc<dyn super::cache::Cache<<E as Entity>::Id, E> + 'static> {
         self.cache.clone()
     }
     fn database(&self) -> &PgPool {

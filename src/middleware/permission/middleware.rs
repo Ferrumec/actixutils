@@ -278,7 +278,7 @@ mod tests {
             self.service.poll_ready(cx)
         }
 
-        fn call(&self,  req: ServiceRequest) -> Self::Future {
+        fn call(&self, req: ServiceRequest) -> Self::Future {
             req.extensions_mut().insert(self.principal.clone());
             self.service.call(req)
         }

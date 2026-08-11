@@ -34,7 +34,7 @@ pub trait ViewSet: Send + Sync + 'static {
 
         cfg.service(
             web::resource(path)
-                .route(web::get().to(move |q| Self::handle_list(vs_list.clone(), q)))
+                .route(web::get().to(move |q, f| Self::handle_list(vs_list.clone(), f, q)))
                 .route(web::post().to(move |body| Self::handle_create(vs_post.clone(), body))),
         )
         .service(
@@ -53,14 +53,16 @@ pub trait ViewSet: Send + Sync + 'static {
 
     fn handle_list(
         self: std::sync::Arc<Self>,
-
+        f: crate::extractors::Filters,
         q: web::Query<QueryParams>,
     ) -> impl std::future::Future<Output = actix_web::Result<HttpResponse>>
     where
         Self: Sized,
     {
+        let mut query = q.into_inner();
+        query.filters = f.0;
         async move {
-            let page = self.service().list(q.into_inner()).await?;
+            let page = self.service().list(query).await?;
             Ok(HttpResponse::Ok().json(page))
         }
     }

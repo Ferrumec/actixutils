@@ -8,7 +8,7 @@
 //!
 //! ```
 //! use actix_web::http::Method;
-//! use actixutils_permissions::{Permission, PermissionSet};
+//! use actixutils::middleware::{Permission, PermissionSet};
 //!
 //! let set = PermissionSet::new(vec![
 //!     Permission::new(Method::GET, "/users", 0).unwrap(),
@@ -24,7 +24,6 @@ use actix_web::dev::ResourceDef;
 use actix_web::http::Method;
 use serde::Deserialize;
 use std::collections::HashSet;
-
 use super::error::PermissionError;
 
 /// A single permission binding an HTTP method and route pattern to a bit index.
@@ -53,7 +52,7 @@ impl Permission {
     ///
     /// ```
     /// use actix_web::http::Method;
-    /// use actixutils_permissions::Permission;
+    /// use actixutils::middleware::Permission;
     ///
     /// let perm = Permission::new(Method::GET, "/users/{id}", 5).unwrap();
     /// assert_eq!(perm.bit_id, 5);
@@ -133,7 +132,7 @@ impl PermissionSet {
     ///
     /// ```
     /// use actix_web::http::Method;
-    /// use actixutils_permissions::{Permission, PermissionSet};
+    /// use actixutils::middleware::{Permission, PermissionSet};
     ///
     /// let set = PermissionSet::new(vec![
     ///     Permission::new(Method::GET, "/users", 0).unwrap(),
@@ -171,7 +170,7 @@ impl PermissionSet {
     /// # Examples
     ///
     /// ```no_run
-    /// use actixutils_permissions::PermissionSet;
+    /// use actixutils::middleware::PermissionSet;
     ///
     /// let set = PermissionSet::from_file("permissions.json").unwrap();
     /// ```
@@ -201,7 +200,7 @@ impl PermissionSet {
     /// # Examples
     ///
     /// ```
-    /// use actixutils_permissions::PermissionSet;
+    /// use actixutils::middleware::PermissionSet;
     ///
     /// let set = PermissionSet::from_json(serde_json::json!({
     ///     "permissions": [
@@ -256,7 +255,7 @@ impl PermissionSet {
     ///
     /// ```
     /// use actix_web::http::Method;
-    /// use actixutils_permissions::{Permission, PermissionSet};
+    /// use actixutils::middleware::{Permission, PermissionSet};
     ///
     /// let set = PermissionSet::new(vec![
     ///     Permission::new(Method::GET, "/users/{id}", 2).unwrap(),
@@ -416,11 +415,11 @@ mod tests {
     fn from_json_invalid_method() {
         let err = PermissionSet::from_json(serde_json::json!({
             "permissions": [
-                { "method": "FETCH", "url": "/users", "bit_id": 0 }
+                { "method": "FET CH", "url": "/users", "bit_id": 0 }
             ]
         }))
         .unwrap_err();
-        assert!(matches!(err, PermissionError::InvalidMethod(ref m) if m == "FETCH"));
+        assert!(matches!(err, PermissionError::InvalidMethod(ref m) if m == "FET CH"));
     }
 
     #[test]

@@ -1,7 +1,5 @@
 use actix_web::{
-    dev::Payload,
-    error::ErrorBadRequest,
-    web, Error, FromRequest, HttpMessage, HttpRequest,
+    Error, FromRequest, HttpMessage, HttpRequest, dev::Payload, error::ErrorBadRequest, web,
 };
 use futures_util::future::LocalBoxFuture;
 use std::collections::HashMap;
@@ -35,8 +33,7 @@ impl FromRequest for Filters {
         }
 
         // Otherwise parse the query string directly.
-        let fut =
-            web::Query::<HashMap<String, String>>::from_request(req, payload);
+        let fut = web::Query::<HashMap<String, String>>::from_request(req, payload);
 
         Box::pin(async move {
             let query = fut.await.map_err(ErrorBadRequest)?;

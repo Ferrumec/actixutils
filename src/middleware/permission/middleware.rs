@@ -34,8 +34,8 @@
 //!
 //! ```rust,no_run
 //! use actix_web::App;
-//! use actixutils_permissions::{PermissionSet, Permissions};
-//! # use actixutils_permissions::Principal;
+//! use actixutils::middleware::{PermissionSet, Permissions};
+//! # use actixutils::middleware::Principal;
 //! # #[derive(Clone)] struct User { role: u128 }
 //! # impl Principal for User { fn role(&self) -> u128 { self.role } }
 //!
@@ -82,7 +82,7 @@ use super::principal::Principal;
 ///
 /// ```rust,no_run
 /// use actix_web::App;
-/// use actixutils_permissions::{PermissionSet, Permissions, Principal};
+/// use actixutils::middleware::{PermissionSet, Permissions, Principal};
 ///
 /// #[derive(Clone)]
 /// struct User { role: u128 }
@@ -111,8 +111,8 @@ impl<P> Permissions<P> {
     /// # Examples
     ///
     /// ```
-    /// use actixutils_permissions::{PermissionSet, Permissions};
-    /// # use actixutils_permissions::Principal;
+    /// use actixutils::middleware::{PermissionSet, Permissions};
+    /// # use actixutils::middleware::Principal;
     /// # #[derive(Clone)] struct User { role: u128 }
     /// # impl Principal for User { fn role(&self) -> u128 { self.role } }
     ///

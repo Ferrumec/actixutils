@@ -9,7 +9,7 @@ use actix_web::{http::Method, test, web, App, Error, HttpResponse};
 use std::future::{ready, Ready};
 use std::task::{Context, Poll};
 
-use actixutils_permissions::{Permission, PermissionSet, Permissions, Principal};
+use actixutils::middleware::{Permission, PermissionSet, Permissions, Principal};
 
 // ---------------------------------------------------------------------------
 // Test principal

@@ -8,7 +8,7 @@
 //! # Example
 //!
 //! ```
-//! use actixutils_permissions::Principal;
+//! use actixutils::middleware::Principal;
 //! use uuid::Uuid;
 //!
 //! struct User {

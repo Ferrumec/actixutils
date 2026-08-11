@@ -22,7 +22,7 @@
 //!
 //! ```rust,no_run
 //! use actix_web::{web, App, HttpResponse};
-//! use actixutils_permissions::{PermissionSet, Permissions, Principal};
+//! use actixutils::middleware::{PermissionSet, Permissions, Principal};
 //!
 //! #[derive(Clone)]
 //! struct User {

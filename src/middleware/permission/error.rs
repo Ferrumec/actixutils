@@ -11,7 +11,7 @@ use thiserror::Error;
 /// # Examples
 ///
 /// ```
-/// use actixutils_permissions::PermissionError;
+/// use actixutils::middleware::PermissionError;
 ///
 /// let err = PermissionError::InvalidBitId { bit_id: 200 };
 /// assert!(err.to_string().contains("200"));

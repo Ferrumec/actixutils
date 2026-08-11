@@ -313,7 +313,10 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .wrap(Permissions::<User>::new(permissions))
-                .route("/users", web::get().to(|| async { HttpResponse::Ok() }))
+                .route(
+                    "/users",
+                    web::get().to(|| async { HttpResponse::Ok().finish() }),
+                )
                 .wrap(InsertPrincipal(User { role: 0b0 })),
         )
         .await;
@@ -331,7 +334,10 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .wrap(Permissions::<User>::new(permissions))
-                .route("/users", web::get().to(|| async { HttpResponse::Ok() })),
+                .route(
+                    "/users",
+                    web::get().to(|| async { HttpResponse::Ok().finish() }),
+                ),
         )
         .await;
 
@@ -348,7 +354,10 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .wrap(Permissions::<User>::new(permissions))
-                .route("/other", web::get().to(|| async { HttpResponse::Ok() }))
+                .route(
+                    "/other",
+                    web::get().to(|| async { HttpResponse::Ok().finish() }),
+                )
                 .wrap(InsertPrincipal(User {
                     role: 0b1111_1111_1111_1111,
                 })),
@@ -368,7 +377,10 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .wrap(Permissions::<User>::new(permissions))
-                .route("/users", web::post().to(|| async { HttpResponse::Ok() }))
+                .route(
+                    "/users",
+                    web::post().to(|| async { HttpResponse::Ok().finish() }),
+                )
                 .wrap(InsertPrincipal(User { role: 0b1 })),
         )
         .await;
@@ -390,7 +402,7 @@ mod tests {
                 .wrap(Permissions::<User>::new(permissions))
                 .route(
                     "/users/{id}",
-                    web::get().to(|| async { HttpResponse::Ok() }),
+                    web::get().to(|| async { HttpResponse::Ok().finish() }),
                 )
                 .wrap(InsertPrincipal(User { role: 0b100 })),
         )
@@ -409,7 +421,10 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .wrap(Permissions::<User>::new(permissions))
-                .route("/users", web::get().to(|| async { HttpResponse::Ok() }))
+                .route(
+                    "/users",
+                    web::get().to(|| async { HttpResponse::Ok().finish() }),
+                )
                 .wrap(InsertPrincipal(User { role: 0b1 })),
         )
         .await;
@@ -429,7 +444,10 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .wrap(Permissions::<User>::new(permissions))
-                .route("/users", web::get().to(|| async { HttpResponse::Ok() }))
+                .route(
+                    "/users",
+                    web::get().to(|| async { HttpResponse::Ok().finish() }),
+                )
                 .wrap(InsertPrincipal(User { role: 0b1 })),
         )
         .await;
@@ -447,7 +465,10 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .wrap(Permissions::<User>::new(permissions))
-                .route("/admin", web::get().to(|| async { HttpResponse::Ok() }))
+                .route(
+                    "/admin",
+                    web::get().to(|| async { HttpResponse::Ok().finish() }),
+                )
                 .wrap(InsertPrincipal(User { role: 1u128 << 127 })),
         )
         .await;
@@ -464,7 +485,10 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .wrap(Permissions::<User>::new(permissions))
-                .route("/users", web::get().to(|| async { HttpResponse::Ok() }))
+                .route(
+                    "/users",
+                    web::get().to(|| async { HttpResponse::Ok().finish() }),
+                )
                 .wrap(InsertPrincipal(User { role: 0b1 })),
         )
         .await;

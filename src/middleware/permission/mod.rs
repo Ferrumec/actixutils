@@ -91,6 +91,7 @@
 
 mod error;
 mod middleware;
+#[allow(clippy::module_inception)]
 mod permission;
 mod principal;
 

@@ -20,11 +20,11 @@
 //! assert!(set.find(&Method::DELETE, "/users").is_none());
 //! ```
 
+use super::error::PermissionError;
 use actix_web::dev::ResourceDef;
 use actix_web::http::Method;
 use serde::Deserialize;
 use std::collections::HashSet;
-use super::error::PermissionError;
 
 /// A single permission binding an HTTP method and route pattern to a bit index.
 ///

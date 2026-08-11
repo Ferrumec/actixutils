@@ -44,8 +44,10 @@ mod test_coalesce;
 #[cfg(test)]
 mod test_session;
 mod timeout;
+mod path_params;
 pub use attach_local::{AttachLocal, SetLocal};
 pub use auth::Auth;
+pub use path_params::PathParams;
 pub use cache::{Cache, CacheMiddleware, CacheStore, CachedResponse, MemoryCache};
 pub use coalesce::Singleflight;
 pub use constant_time::ResponseEqualizer;

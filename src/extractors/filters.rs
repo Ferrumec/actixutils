@@ -1,16 +1,12 @@
-//! [`Filters`] — collects arbitrary query-string parameters for manual filtering.
-
-use actix_web::{Error, FromRequest, HttpRequest, dev::Payload, error::ErrorBadRequest, web};
+use actix_web::{
+    dev::Payload,
+    error::ErrorBadRequest,
+    web, Error, FromRequest, HttpMessage, HttpRequest,
+};
 use futures_util::future::LocalBoxFuture;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
-/// An extractor that collects every query-string parameter into a `HashMap<String, String>`.
-///
-/// Unlike a typed `web::Query<T>`, this accepts any set of key/value pairs without a
-/// fixed schema, which is useful for handlers that apply ad-hoc filtering (e.g.
-/// `?status=active&owner=42`) against a repository or query builder. Derefs to the
-/// inner `HashMap` for convenient access.
 #[derive(Debug, Clone, Default)]
 pub struct Filters(pub HashMap<String, String>);
 
@@ -33,7 +29,14 @@ impl FromRequest for Filters {
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
-        let fut = web::Query::<HashMap<String, String>>::from_request(req, payload);
+        // Prefer the Filters already constructed by middleware.
+        if let Some(filters) = req.extensions().get::<Filters>() {
+            return Box::pin(std::future::ready(Ok(filters.clone())));
+        }
+
+        // Otherwise parse the query string directly.
+        let fut =
+            web::Query::<HashMap<String, String>>::from_request(req, payload);
 
         Box::pin(async move {
             let query = fut.await.map_err(ErrorBadRequest)?;

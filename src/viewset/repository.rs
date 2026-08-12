@@ -484,19 +484,16 @@ where
     Ok(())
 }
 
-use std::marker::PhantomData;
 
 pub struct DefaultRepo<E: Entity> {
     db: PgPool,
     cache: Arc<DefaultCache<E::Id, E>>,
-    _marker: PhantomData<E>,
 }
 
 impl<E: Entity> From<PgPool> for DefaultRepo<E> {
     fn from(db: PgPool) -> DefaultRepo<E> {
         Self {
             db,
-            _marker: PhantomData,
             cache: Arc::new(DefaultCache::new(1000)),
         }
     }

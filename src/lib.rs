@@ -75,8 +75,6 @@ pub mod locals;
 pub mod middleware;
 pub mod pubkey;
 
-#[cfg(feature = "viewset")]
-pub mod viewset;
 #[cfg(feature = "jwt")]
 pub use extractors::Jwt;
 pub use locals::{Authority, Identity, Provider, SessionStore, Sign, Validate};

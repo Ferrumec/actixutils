@@ -27,12 +27,12 @@ mod provider;
 mod rs256;
 mod session;
 mod signer_core;
-
+mod store;
 pub mod rate_limiter;
 
 #[cfg(feature = "es")]
 pub mod context;
-
+pub use store::Store;
 pub use claims::{Authority, Identity};
 #[cfg(feature = "jwt")]
 pub use hs256::HS256Signer;

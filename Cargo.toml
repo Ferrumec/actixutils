@@ -36,7 +36,6 @@ typed-eventbus = { version = "0.2.1", optional = true }
 serde_json = { version = "1.0.150"}
 thiserror = { version = "2.0.18"}
 futures = "0.3.33"
-moka = { version = "0.12.15", features = ["sync"] }
 
 [features]
 es = ["typed-eventbus"]

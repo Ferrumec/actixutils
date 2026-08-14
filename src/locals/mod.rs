@@ -26,7 +26,6 @@ mod provider;
 pub mod rate_limiter;
 #[cfg(feature = "jwt")]
 mod rs256;
-mod session;
 mod signer_core;
 mod store;
 
@@ -40,7 +39,6 @@ pub use pagination::Pagination;
 pub use provider::Provider;
 #[cfg(feature = "jwt")]
 pub use rs256::{RS256Signer, RS256Validator};
-pub use session::SessionStore;
 pub use signer_core::{Sign, Validate};
 pub use store::Store;
 

@@ -44,14 +44,14 @@ use std::{
     task::{Context, Poll},
     time::{Duration, Instant},
 };
-
+use crate::locals::Store;
 use crate::locals::rate_limiter::GetId;
 use actix_web::{
     Error, FromRequest, HttpResponse,
     body::EitherBody,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
 };
-use dashmap::DashMap;
+
 use futures_util::future::LocalBoxFuture;
 
 /// Middleware factory for sliding-window rate limiting.
@@ -68,7 +68,7 @@ where
 {
     max_requests: usize,
     window: Duration,
-    store: Arc<DashMap<T::Id, VecDeque<Instant>>>,
+    store: Arc<dyn Store<T::Id, VecDeque<Instant>>>,
     _marker: PhantomData<T>,
 }
 
@@ -95,11 +95,11 @@ where
     /// # Arguments
     /// * `max_requests` — Maximum requests allowed per identity within `window`.
     /// * `window`       — Duration of the sliding time window.
-    pub fn new(max_requests: usize, window: Duration) -> Self {
+    pub fn new(store:Arc<dyn Store<T::Id, VecDeque<Instant>>>,max_requests: usize, window: Duration) -> Self {
         Self {
             max_requests,
             window,
-            store: Arc::new(DashMap::new()),
+            store,
             _marker: PhantomData,
         }
     }
@@ -165,7 +165,7 @@ where
                 let id = identity.id();
                 let now = Instant::now();
 
-                let mut entry = limiter.store.entry(id).or_default();
+                let mut entry = limiter.store.get(&id).await?.unwrap_or_default();
 
                 // Purge timestamps outside the current window
                 while let Some(timestamp) = entry.front() {
@@ -187,6 +187,7 @@ where
                 }
 
                 entry.push_back(now);
+                limiter.store.set(id,entry).await?;
             }
 
             let res = service.call(req).await?;

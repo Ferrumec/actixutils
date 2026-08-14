@@ -23,16 +23,15 @@ mod hs256;
 mod idempotency;
 pub mod pagination;
 mod provider;
+pub mod rate_limiter;
 #[cfg(feature = "jwt")]
 mod rs256;
 mod session;
 mod signer_core;
 mod store;
-pub mod rate_limiter;
 
 #[cfg(feature = "es")]
 pub mod context;
-pub use store::Store;
 pub use claims::{Authority, Identity};
 #[cfg(feature = "jwt")]
 pub use hs256::HS256Signer;
@@ -43,6 +42,7 @@ pub use provider::Provider;
 pub use rs256::{RS256Signer, RS256Validator};
 pub use session::SessionStore;
 pub use signer_core::{Sign, Validate};
+pub use store::Store;
 
 #[cfg(feature = "es")]
 pub use context::{Context, GetId};

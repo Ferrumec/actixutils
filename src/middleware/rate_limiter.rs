@@ -36,6 +36,13 @@
 //! );
 //! ```
 
+use crate::locals::Store;
+use crate::locals::rate_limiter::GetId;
+use actix_web::{
+    Error, FromRequest, HttpResponse,
+    body::EitherBody,
+    dev::{Service, ServiceRequest, ServiceResponse, Transform},
+};
 use std::{
     collections::VecDeque,
     future::{Ready, ready},
@@ -43,13 +50,6 @@ use std::{
     sync::Arc,
     task::{Context, Poll},
     time::{Duration, Instant},
-};
-use crate::locals::Store;
-use crate::locals::rate_limiter::GetId;
-use actix_web::{
-    Error, FromRequest, HttpResponse,
-    body::EitherBody,
-    dev::{Service, ServiceRequest, ServiceResponse, Transform},
 };
 
 use futures_util::future::LocalBoxFuture;
@@ -95,7 +95,11 @@ where
     /// # Arguments
     /// * `max_requests` — Maximum requests allowed per identity within `window`.
     /// * `window`       — Duration of the sliding time window.
-    pub fn new(store:Arc<dyn Store<T::Id, VecDeque<Instant>>>,max_requests: usize, window: Duration) -> Self {
+    pub fn new(
+        store: Arc<dyn Store<T::Id, VecDeque<Instant>>>,
+        max_requests: usize,
+        window: Duration,
+    ) -> Self {
         Self {
             max_requests,
             window,
@@ -187,7 +191,7 @@ where
                 }
 
                 entry.push_back(now);
-                limiter.store.set(id,entry).await?;
+                limiter.store.set(id, entry).await?;
             }
 
             let res = service.call(req).await?;

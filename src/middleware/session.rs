@@ -36,7 +36,7 @@ use actix_web::{
     error,
 };
 
-use crate::SessionStore;
+use crate::Store;
 use crate::extractors::Session;
 use futures_util::future::LocalBoxFuture;
 use std::{
@@ -54,18 +54,18 @@ use uuid::Uuid;
 /// cookies are rejected with `401 Unauthorized`). Customise the cookie name with
 /// [`cookie_name`](Self::cookie_name).
 pub struct SessionMiddleware<S> {
-    store: Arc<S>,
+    store: Arc<dyn Store<Uuid, S>>,
     cookie_name: String,
     required: bool,
 }
 
-impl<S> SessionMiddleware<S> {
+impl<Sess> SessionMiddleware<Sess> {
     /// Create a `SessionMiddleware` backed by `store`.
     ///
     /// A request with no session cookie, or one that fails to parse as a `Uuid`, is
     /// given a fresh default session (a new cookie is issued on the response) rather
     /// than being rejected. The cookie name defaults to `"session"`.
-    pub fn new(store: Arc<S>) -> Self {
+    pub fn new(store: Arc<dyn Store<Uuid, Sess>>) -> Self {
         Self {
             store,
             cookie_name: "session".into(),
@@ -78,7 +78,7 @@ impl<S> SessionMiddleware<S> {
     ///
     /// A request with no session cookie, or one that fails to parse as a `Uuid`,
     /// causes the middleware to return `401 Unauthorized` before the handler runs.
-    pub fn required(store: Arc<S>) -> Self {
+    pub fn required(store: Arc<dyn Store<Uuid, Sess>>) -> Self {
         Self {
             store,
             cookie_name: "session".into(),
@@ -93,16 +93,15 @@ impl<S> SessionMiddleware<S> {
     }
 }
 
-impl<S, B, Store> Transform<S, ServiceRequest> for SessionMiddleware<Store>
+impl<S, B, Sess: Default + Clone + 'static> Transform<S, ServiceRequest> for SessionMiddleware<Sess>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
-    Store: SessionStore + 'static,
     B: MessageBody + 'static,
 {
     type Response = ServiceResponse<B>;
     type Error = Error;
-    type Transform = SessionMiddlewareService<S, Store>;
+    type Transform = SessionMiddlewareService<S, Sess>;
     type InitError = ();
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
     fn new_transform(&self, service: S) -> Self::Future {
@@ -116,18 +115,18 @@ where
 }
 
 /// The inner service produced by [`SessionMiddleware`].
-pub struct SessionMiddlewareService<S, Store> {
-    service: Rc<S>,
-    store: Arc<Store>,
+pub struct SessionMiddlewareService<R, S> {
+    service: Rc<R>,
+    store: Arc<dyn Store<Uuid, S>>,
     cookie_name: String,
     required: bool,
 }
 
-impl<S, B, Store> Service<ServiceRequest> for SessionMiddlewareService<S, Store>
+impl<S, B, Sess: Default + Clone + 'static> Service<ServiceRequest>
+    for SessionMiddlewareService<S, Sess>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
-    Store: SessionStore + 'static,
     B: MessageBody + 'static,
 {
     type Response = ServiceResponse<B>;
@@ -157,7 +156,7 @@ where
                             Uuid::new_v4()
                         }
                     };
-                    let session_data = store.load(&id).await?.unwrap_or_default();
+                    let session_data = store.get(&id).await?.unwrap_or_default();
                     req.extensions_mut().insert(session_data.clone());
                     (id, Session::new(session_data), new_session)
                 }
@@ -166,7 +165,7 @@ where
                         return Err(error::ErrorUnauthorized("no session"));
                     }
                     let id = Uuid::new_v4();
-                    let session = Session::new(Store::Session::default());
+                    let session = Session::new(Sess::default());
                     session.dirty.store(true, Ordering::Relaxed); // new session must be saved once
                     (id, session, true)
                 }
@@ -180,7 +179,7 @@ where
             // Only save if dirty
             if session.is_dirty() {
                 let session_data = session.read().await;
-                store.save(&session_id, &*session_data).await?;
+                store.set(session_id, session_data.clone()).await?;
                 session.set_clean(); // reset flag
             }
 

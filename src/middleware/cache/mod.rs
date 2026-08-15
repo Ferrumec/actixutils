@@ -21,6 +21,7 @@ mod store;
 #[cfg(test)]
 mod test;
 mod types;
+
 pub use middleware::{Cache, CacheMiddleware};
 pub use store::CacheStore;
 pub use types::CachedResponse;

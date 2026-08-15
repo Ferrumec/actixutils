@@ -10,10 +10,11 @@
 //! When the limit is exceeded the middleware returns `429 Too Many Requests`
 //! immediately, without invoking downstream handlers.
 //!
-//! The in-memory store is a [`DashMap`](dashmap::DashMap) of `VecDeque<Instant>` per
-//! identity. Old timestamps are pruned lazily on each request. This is suitable for
-//! single-instance deployments; for multi-node rate limiting you would need to back
-//! the store with Redis or a similar shared store.
+//! Timestamp tracking is delegated to a pluggable [`Store`], keyed by
+//! `T::Id` and storing a `VecDeque<Instant>` of recent request times per
+//! identity; old timestamps are pruned lazily on each request. An in-memory
+//! `Store` is suitable for single-instance deployments; for multi-node rate
+//! limiting, back the store with Redis or a similar shared backend.
 //!
 //! # Example
 //! ```ignore
@@ -21,6 +22,7 @@
 //! use actixutils::locals::Identity;
 //! use actixutils::middleware::RateLimiter;
 //! use actix_web::{web, App};
+//! use std::sync::Arc;
 //! use std::time::Duration;
 //! use uuid::Uuid;
 //!
@@ -30,9 +32,11 @@
 //!     fn id(&self) -> Uuid { self.0.sub }
 //! }
 //!
+//! let store = Arc::new(my_store()); // any impl of `locals::Store<Uuid, VecDeque<Instant>>`
+//!
 //! App::new().service(
 //!     web::scope("/api")
-//!         .wrap(RateLimiter::<Auth<Identity>>::new(100, Duration::from_secs(60)))
+//!         .wrap(RateLimiter::<Auth<Identity>>::new(store, 100, Duration::from_secs(60)))
 //! );
 //! ```
 
@@ -59,9 +63,8 @@ use futures_util::future::LocalBoxFuture;
 /// `T` must implement both [`FromRequest`] (so it can be extracted per request)
 /// and [`GetId`] (so a unique key can be derived).
 ///
-/// # Arguments to [`RateLimiter::new`]
-/// * `max_requests` — Maximum number of requests allowed per identity per `window`.
-/// * `window`       — Rolling time window duration.
+/// Construct with [`RateLimiter::new`], supplying a [`Store`] to persist
+/// per-identity request timestamps in.
 pub struct RateLimiter<T>
 where
     T: GetId,
@@ -93,6 +96,7 @@ where
     /// Create a new `RateLimiter`.
     ///
     /// # Arguments
+    /// * `store`        — Backing store for per-identity request timestamps.
     /// * `max_requests` — Maximum requests allowed per identity within `window`.
     /// * `window`       — Duration of the sliding time window.
     pub fn new(

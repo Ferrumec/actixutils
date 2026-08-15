@@ -18,6 +18,8 @@
 //! | [`Pagination`] / [`PaginationMiddleware`] | Parses `?page=&limit=` and stores params in a task-local (state: [`locals::pagination`](crate::locals::pagination)) |
 //! | [`Session<T>`] / [`SessionMiddleware`] | Cookie-based, server-side session storage; loads/saves via an async store trait implemented by the caller |
 //! | [`AttachLocal<T>`] / [`SetLocal`] | Generic helper that extracts a `T` up front and runs the rest of the request inside `T::scope` (e.g. to populate a task-local) |
+//! | [`PathParams`] | Merges matched path parameters into [`Filters`](crate::extractors::Filters), overlaying them on the query string |
+//! | [`TimeoutMiddleware`] | Aborts a request with `504 Gateway Timeout` if it exceeds a fixed duration |
 //!
 //! ## Helper functions
 //!

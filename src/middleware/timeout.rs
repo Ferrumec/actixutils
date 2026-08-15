@@ -1,3 +1,10 @@
+//! Per-request timeout middleware.
+//!
+//! [`TimeoutMiddleware`] wraps every request in a fixed [`Duration`] budget.
+//! If the wrapped service hasn't produced a response by the deadline, the
+//! in-flight future is dropped and a `504 Gateway Timeout` is returned
+//! instead.
+
 use actix_web::{
     Error,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
@@ -10,11 +17,15 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::time::timeout as tokio_timeout;
 
+/// Middleware factory that fails requests exceeding a fixed [`Duration`]
+/// with a `504 Gateway Timeout`.
 pub struct TimeoutMiddleware {
     timeout: Duration,
 }
 
 impl TimeoutMiddleware {
+    /// Create a `TimeoutMiddleware` that aborts requests taking longer than
+    /// `timeout` to complete.
     pub fn new(timeout: Duration) -> Self {
         Self { timeout }
     }
@@ -40,6 +51,8 @@ where
     }
 }
 
+/// Per-worker service produced by [`TimeoutMiddleware`]; races the wrapped
+/// service against the configured deadline.
 pub struct TimeoutMiddlewareService<S> {
     service: S,
     timeout: Duration,

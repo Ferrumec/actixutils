@@ -1,3 +1,11 @@
+//! Middleware that merges matched path parameters into request [`Filters`].
+//!
+//! [`PathParams`] runs the [`Filters`] extractor over the request's query
+//! string, then overlays any dynamic path segments (`/users/{id}`) on top,
+//! so downstream handlers can read a single, unified [`Filters`] map via
+//! `web::ReqData<Filters>` regardless of whether a value came from the URL
+//! path or the query string.
+
 use actix_web::{
     Error, HttpMessage,
     dev::{Service, ServiceRequest, ServiceResponse, Transform, forward_ready},
@@ -7,6 +15,9 @@ use std::rc::Rc;
 
 use crate::extractors::Filters;
 
+/// Middleware factory that merges matched path parameters into [`Filters`].
+///
+/// Path parameters take precedence over query parameters of the same name.
 pub struct PathParams;
 
 impl<S, B> Transform<S, ServiceRequest> for PathParams
@@ -28,6 +39,8 @@ where
     }
 }
 
+/// Per-worker service produced by [`PathParams`]; does the actual merging
+/// of path and query parameters into [`Filters`].
 pub struct PathParamsService<S> {
     service: Rc<S>,
 }
@@ -48,7 +61,7 @@ where
         let service = Rc::clone(&self.service);
 
         Box::pin(async move {
-            // Extract query parameters using your existing extractor.
+            // Start from the query-string parameters.
             let mut filters = req.extract::<Filters>().await?;
 
             // Add matched path parameters.

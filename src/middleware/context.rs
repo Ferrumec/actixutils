@@ -81,6 +81,12 @@ impl<T> ReadContext<T> {
         }
     }
 
+    /// Control whether the authenticated user is automatically added as an
+    /// audience on every event published through the resulting [`Context`].
+    ///
+    /// Defaults to `false`. Enable this when downstream consumers filter
+    /// events by recipient and the acting user should always be among them
+    /// (e.g. so a user always receives their own notifications).
     pub fn with_user_as_audience(mut self, status: bool) -> Self {
         self.user_as_audience = status;
         self

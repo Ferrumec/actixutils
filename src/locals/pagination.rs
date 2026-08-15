@@ -48,6 +48,10 @@ impl Pagination {
         PAGINATION.try_with(|p| *p).unwrap_or_default()
     }
 
+    /// The zero-based row offset for this page, computed as `page * limit`.
+    ///
+    /// Convenient for building `LIMIT limit OFFSET offset` SQL queries
+    /// directly from a snapshot.
     pub fn offset(&self) -> u32 {
         self.page * self.limit
     }

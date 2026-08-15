@@ -11,41 +11,37 @@ use uuid::Uuid;
 /// Minimal JWT claims for identifying a user.
 ///
 /// Tokens are signed with a 500-second expiry from the moment of creation.
-///
-/// # Fields
-/// * `sub` — Subject: the UUID of the authenticated user.
-/// * `aud` — Audiences this token is valid for.
-/// * `iat` — Issued-at timestamp (seconds since the Unix epoch).
-/// * `exp` — Expiry timestamp (seconds since the Unix epoch).
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Identity {
+    /// Audiences this token is valid for.
     pub aud: Vec<String>,
+    /// Issued-at timestamp (seconds since the Unix epoch).
     pub iat: usize,
+    /// Expiry timestamp (seconds since the Unix epoch).
     pub exp: usize,
+    /// Subject: the UUID of the authenticated user.
     pub sub: Uuid,
 }
-#[allow(clippy::doc_overindented_list_items)]
+
 /// Extended JWT claims that carry role-based permissions and a recipient context.
 ///
 /// `role` is a 128-bit bitmask. Each bit position corresponds to a distinct
 /// permission. Use [`Authority::check`] to test whether a specific permission
 /// bit is set.
-///
-/// # Fields
-/// * `sub`  — Subject: the UUID of the acting user.
-/// * `rcpt` — Recipient: the UUID of the target resource or user this token
-///            was issued for (e.g. a community or tenant ID).
-/// * `role` — Permission bitmask (up to 128 discrete permissions).
-/// * `aud`  — Audiences this token is valid for.
-/// * `iat`  — Issued-at timestamp (seconds since the Unix epoch).
-/// * `exp`  — Expiry timestamp (seconds since the Unix epoch).
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Authority {
+    /// Issued-at timestamp (seconds since the Unix epoch).
     pub iat: usize,
+    /// Expiry timestamp (seconds since the Unix epoch).
     pub exp: usize,
+    /// Permission bitmask (up to 128 discrete permissions).
     pub role: u128,
+    /// Audiences this token is valid for.
     pub aud: Vec<String>,
+    /// Subject: the UUID of the acting user.
     pub sub: Uuid,
+    /// Recipient: the UUID of the target resource or user this token was
+    /// issued for (e.g. a community or tenant ID).
     pub rcpt: Uuid,
 }
 

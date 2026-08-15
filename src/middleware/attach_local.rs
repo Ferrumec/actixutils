@@ -10,7 +10,7 @@
 
 use std::future::{Ready, ready};
 use std::marker::PhantomData;
-use std::rc::Rc; // use Rc instead of Clone
+use std::rc::Rc;
 
 use actix_web::FromRequest;
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform, forward_ready};
@@ -52,7 +52,7 @@ where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
     T: FromRequest + SetLocal + 'static,
-    <T as FromRequest>::Error: Into<Error>, // FIX 3: allow ? to convert error
+    <T as FromRequest>::Error: Into<Error>,
 {
     type Response = ServiceResponse<B>;
     type Error = Error;
@@ -62,7 +62,7 @@ where
 
     fn new_transform(&self, service: S) -> Self::Future {
         ready(Ok(AttachLocalMiddleware {
-            service: Rc::new(service), // wrap in Rc
+            service: Rc::new(service),
             _marker: PhantomData,
         }))
     }
@@ -70,7 +70,7 @@ where
 
 /// The inner service produced by [`AttachLocal`].
 pub struct AttachLocalMiddleware<S, T> {
-    service: Rc<S>, // FIX 1: Rc instead of Clone
+    service: Rc<S>,
     _marker: PhantomData<T>,
 }
 
@@ -79,7 +79,7 @@ where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
     T: FromRequest + SetLocal + 'static,
-    <T as FromRequest>::Error: Into<Error>, // FIX 3
+    <T as FromRequest>::Error: Into<Error>,
 {
     type Response = ServiceResponse<B>;
     type Error = Error;
@@ -88,20 +88,18 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        let service = self.service.clone(); // Rc::clone is cheap
+        let service = self.service.clone();
         Box::pin(async move {
-            // Unpack request
+            // Split the request so we can extract T from it, then rebuild
+            // the request from the same parts to pass downstream.
             let (req, mut payload) = req.into_parts();
 
-            // extract. from_request consumes &mut Payload
             let value = T::from_request(&req, &mut payload)
                 .await
                 .map_err(Into::into)?;
 
-            // rebuild request with the same payload we just used
             let req = ServiceRequest::from_parts(req, payload);
 
-            // scope it
             value.scope(service.call(req)).await
         })
     }

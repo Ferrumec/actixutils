@@ -34,13 +34,11 @@ pub struct HS256Signer {
 }
 
 impl HS256Signer {
-    #[allow(clippy::doc_overindented_list_items)]
     /// Create a new `HS256Signer` that signs tokens for `aud` using `secret`.
     ///
-    /// # Arguments
-    /// * `aud`    — The audience string embedded in every signed token and required
-    ///              during validation.
-    /// * `secret` — The HMAC shared secret. Keep this private.
+    /// `aud` is the audience string embedded in every signed token and
+    /// required to match during validation. `secret` is the HMAC shared
+    /// secret; keep it private.
     pub fn new(aud: String, secret: String) -> Self {
         let mut vald = Validation::new(Algorithm::HS256);
         vald.set_audience(&[aud]);

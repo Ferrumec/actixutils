@@ -16,8 +16,11 @@ use futures_util::future::LocalBoxFuture;
 /// Shared response data replicated to all coalesced followers.
 #[derive(Clone, Debug)]
 pub struct CoalescedResponse {
+    /// The HTTP status code returned by the leader's execution.
     pub status: StatusCode,
+    /// The response headers produced by the leader's execution.
     pub headers: HeaderMap,
+    /// The fully-buffered response body shared with all followers.
     pub body: Bytes,
 }
 
@@ -43,6 +46,12 @@ where
     K: Eq + Hash + Clone + 'static,
     KeyFn: Fn(&ServiceRequest) -> K + Clone + 'static,
 {
+    /// Construct a `Singleflight` transform that groups concurrent requests
+    /// by the key returned from `key_fn`.
+    ///
+    /// Requests that map to the same key while an execution is already
+    /// in flight wait for that execution to finish and receive a clone of
+    /// its response, instead of hitting the wrapped service themselves.
     pub fn new(key_fn: KeyFn) -> Self {
         Self {
             key_fn,
@@ -77,6 +86,8 @@ where
     }
 }
 
+/// Per-worker service produced by [`Singleflight`]; does the actual
+/// request-coalescing work.
 pub struct SingleflightMiddleware<S, K, KeyFn> {
     service: Rc<S>,
     key_fn: KeyFn,

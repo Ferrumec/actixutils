@@ -3,11 +3,7 @@
 //! This is the crate's built-in session mechanism: [`SessionMiddleware`] resolves a
 //! session cookie to a value of type `T` on each request, exposes it to handlers via
 //! the [`Session<T>`] extractor, and persists any changes back to a caller-supplied
-//! store after the response is produced.
-//!
-//! Note this module defines its own async [`SessionStore`] trait, distinct from the
-//! synchronous [`locals::SessionStore<T>`](crate::locals::SessionStore) trait exported
-//! elsewhere in the crate — that other trait is not used by this middleware.
+//! [`Store`](crate::Store) after the response is produced.
 //!
 //! # Example
 //! ```ignore

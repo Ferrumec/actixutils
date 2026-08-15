@@ -11,12 +11,16 @@ use bytes::Bytes;
 /// [`CacheStore`]: crate::middleware::cache::store::CacheStore
 #[derive(Debug, Clone)]
 pub struct CachedResponse {
+    /// The HTTP status code the original response was returned with.
     pub status: StatusCode,
+    /// The response headers to replay, in their original order.
     pub headers: Vec<(HeaderName, HeaderValue)>,
+    /// The fully-buffered response body.
     pub body: Bytes,
 }
 
 impl CachedResponse {
+    /// Construct a `CachedResponse` from its constituent parts.
     pub fn new(status: StatusCode, headers: Vec<(HeaderName, HeaderValue)>, body: Bytes) -> Self {
         Self {
             status,

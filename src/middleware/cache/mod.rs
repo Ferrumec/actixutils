@@ -21,7 +21,6 @@ mod middleware;
 mod store;
 mod types;
 
-pub use memory::MemoryCache;
 pub use middleware::{Cache, CacheMiddleware};
 pub use store::CacheStore;
 pub use types::CachedResponse;

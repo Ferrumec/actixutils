@@ -189,7 +189,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::middleware::cache::memory::MemoryCache;
+    use crate::middleware::cache::MemoryCache;
     use actix_web::http::StatusCode;
     use actix_web::{App, HttpResponse, test, web};
     use std::sync::atomic::{AtomicUsize, Ordering};

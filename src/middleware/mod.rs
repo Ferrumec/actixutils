@@ -47,7 +47,7 @@ mod test_session;
 mod timeout;
 pub use attach_local::{AttachLocal, SetLocal};
 pub use auth::Auth;
-pub use cache::{Cache, CacheMiddleware, CacheStore, CachedResponse, MemoryCache};
+pub use cache::{Cache, CacheMiddleware, CacheStore, CachedResponse};
 pub use coalesce::Singleflight;
 pub use constant_time::ResponseEqualizer;
 #[cfg(feature = "es")]

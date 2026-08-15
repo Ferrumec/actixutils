@@ -4,11 +4,11 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-
+use std::error::Error;
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
-use super::store::CacheStore;
+use crate::Store;
 use super::types::CachedResponse;
 
 const DEFAULT_MAX_ENTRIES: usize = 10_000;
@@ -85,18 +85,18 @@ impl Default for MemoryCache {
 }
 
 #[async_trait]
-impl CacheStore for MemoryCache {
-    async fn get(&self, key: &str) -> Option<CachedResponse> {
+impl Store<String,CachedResponse> for MemoryCache {
+    async fn get(&self, key: &String) -> Result<Option<CachedResponse>, Box<dyn Error>> {
         let entries = self.entries.read().await;
-        match entries.get(key) {
+        Ok(match entries.get(key) {
             Some(entry) if !entry.is_expired() => Some(entry.response.clone()),
             _ => None,
-        }
+        })
     }
 
-    async fn set(&self, key: &str, response: CachedResponse, ttl: Duration) {
+    async fn set(&self, key: String, response: CachedResponse)->Result<(), Box<dyn Error>> {
         self.evict_if_needed().await;
-
+        let ttl = Duration::from_mins(10);
         let entry = Entry {
             response,
             expires_at: Instant::now() + ttl,
@@ -112,14 +112,17 @@ impl CacheStore for MemoryCache {
                 .await
                 .push_back(key.to_string());
         }
+        Ok(())
     }
 
-    async fn delete(&self, key: &str) {
+    async fn delete(&self, key: &String) ->Result<(), Box<dyn Error>>{
         self.entries.write().await.remove(key);
+        Ok(())
     }
 
-    async fn clear(&self) {
+    async fn clear(&self) ->Result<(), Box<dyn Error>>{
         self.entries.write().await.clear();
         self.insertion_order.write().await.clear();
+        Ok(())
     }
 }

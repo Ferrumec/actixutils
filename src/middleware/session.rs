@@ -179,7 +179,7 @@ where
             // Only save if dirty
             if session.is_dirty() {
                 let session_data = session.read().await;
-                store.set(session_id, session_data.clone()).await?;
+                store.set(&session_id, session_data.clone()).await?;
                 session.set_clean(); // reset flag
             }
 

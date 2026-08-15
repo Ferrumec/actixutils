@@ -191,7 +191,7 @@ where
                 }
 
                 entry.push_back(now);
-                limiter.store.set(id, entry).await?;
+                limiter.store.set(&id, entry).await?;
             }
 
             let res = service.call(req).await?;

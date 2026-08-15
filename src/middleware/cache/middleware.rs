@@ -171,7 +171,7 @@ where
             };
 
             let cached_response = CachedResponse::new(status, headers.clone(), bytes.clone());
-            if let Err(e) = store.set(key, cached_response).await {
+            if let Err(e) = store.set(&key, cached_response).await {
                 tracing::error!("Error in setting cache value: {}", e);
             };
 
@@ -193,8 +193,9 @@ mod tests {
     use actix_web::http::StatusCode;
     use actix_web::{App, HttpResponse, test, web};
     use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::time::Duration;
 
-    fn store() -> Arc<dyn CacheStore> {
+    fn store() -> Arc<dyn Store<String, CachedResponse>> {
         Arc::new(MemoryCache::new())
     }
 
@@ -375,7 +376,7 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .app_data(counter_app_data(&counter))
-                .wrap(Cache::new(store()).ttl(Duration::from_millis(20)))
+                .wrap(Cache::new(store()))
                 .route("/products", web::get().to(counting_handler)),
         )
         .await;
@@ -586,7 +587,13 @@ mod tests {
 
         // Neither request was served from cache, and nothing was written.
         assert_eq!(counter.load(Ordering::SeqCst), 2);
-        assert!(cache_store.get("localhost:8080/stream").await.is_none());
+        assert!(
+            cache_store
+                .get(&"localhost:8080/stream".to_string())
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]

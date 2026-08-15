@@ -1,7 +1,6 @@
+use crate::Store;
 use crate::extractors::Session;
-use crate::locals::SessionStore;
 use crate::middleware::SessionMiddleware;
-use actix_web::Error;
 use actix_web::{App, HttpResponse, Responder, test, web};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -28,23 +27,31 @@ impl MockStore {
 }
 
 #[async_trait::async_trait]
-impl SessionStore for MockStore {
-    type Session = TestSession;
-
-    async fn load(&self, session_id: &Uuid) -> Result<Option<Self::Session>, Error> {
+impl Store<Uuid, TestSession> for MockStore {
+    async fn get(
+        &self,
+        session_id: &Uuid,
+    ) -> Result<Option<TestSession>, Box<dyn std::error::Error>> {
         let map = self.inner.read().await;
         Ok(map.get(session_id).cloned())
     }
 
-    async fn save(&self, session_id: &Uuid, session: &Self::Session) -> Result<(), Error> {
+    async fn set(
+        &self,
+        session_id: &Uuid,
+        session: TestSession,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut map = self.inner.write().await;
-        map.insert(*session_id, session.clone());
+        map.insert(*session_id, session);
         Ok(())
     }
 
-    async fn delete(&self, session_id: &Uuid) -> Result<(), Error> {
+    async fn delete(&self, session_id: &Uuid) -> Result<(), Box<dyn std::error::Error>> {
         let mut map = self.inner.write().await;
         map.remove(session_id);
+        Ok(())
+    }
+    async fn clear(&self) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
 }
@@ -67,9 +74,9 @@ async fn test_session_load_from_cookie() {
     // pre-populate store
     let sess_id = Uuid::new_v4();
     store
-        .save(
+        .set(
             &sess_id,
-            &TestSession {
+            TestSession {
                 user_id: Some(42),
                 counter: 5,
             },
@@ -103,9 +110,9 @@ async fn test_session_save_on_response() {
     let store = Arc::new(MockStore::new());
     let sess_id = Uuid::new_v4();
     store
-        .save(
+        .set(
             &sess_id,
-            &TestSession {
+            TestSession {
                 user_id: None,
                 counter: 0,
             },
@@ -132,7 +139,7 @@ async fn test_session_save_on_response() {
     assert_eq!(resp.counter, 1); // handler incremented
 
     // Verify it was saved back to store
-    let saved = store.load(&sess_id).await.unwrap().unwrap();
+    let saved = store.get(&sess_id).await.unwrap().unwrap();
     assert_eq!(saved.counter, 1);
 }
 

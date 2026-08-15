@@ -94,7 +94,7 @@ impl Store<String,CachedResponse> for MemoryCache {
         })
     }
 
-    async fn set(&self, key: String, response: CachedResponse)->Result<(), Box<dyn Error>> {
+    async fn set(&self, key: &String, response: CachedResponse)->Result<(), Box<dyn Error>> {
         self.evict_if_needed().await;
         let ttl = Duration::from_mins(10);
         let entry = Entry {

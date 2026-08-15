@@ -27,11 +27,6 @@ The crate is split into three top-level modules, by whether an item depends on
 | `middleware` | Types implementing `Transform`: the full middleware suite, including the `Session<T>` extractor and its `SessionMiddleware` |
 | `locals` | Framework-agnostic pieces: claim structs, signing/validation traits, store traits, task-local state |
 
-Plus an optional fourth module:
-
-| Module | Feature flag | Contains |
-|---|---|---|
-| `viewset` | `viewset` | Generic CRUD toolkit (ViewSet → Service → Repository → Postgres) |
 
 The most commonly used `extractors` and `locals` items are re-exported at the crate
 root, so `actixutils::Jwt`, `actixutils::Identity`, etc. work without a submodule path.
@@ -42,7 +37,6 @@ root, so `actixutils::Jwt`, `actixutils::Identity`, etc. work without a submodul
 |---|---|
 | `jwt` | JWT support: the `Jwt<T>` extractor, `middleware::Auth`, `HS256Signer`, `RS256Signer`/`RS256Validator`, the `identity`/`authority` helper functions |
 | `es` | Event-stream context propagation: `locals::Context`, `middleware::{Context, ReadContext}` (requires `typed-eventbus`) |
-| `viewset` | The `viewset` module (requires `sqlx`, `serde_json`, `thiserror`, `rust_decimal`, `viewset-macros`) |
 
 None of these are enabled by default — enable whichever your application needs in
 `Cargo.toml`.
@@ -148,26 +142,6 @@ Cookie-based, server-side sessions live in `middleware`, **not** `extractors`:
 | `Session<T>` / `SessionMiddleware` | Cookie-based server-side sessions (see above) |
 | `AttachLocal<T>` / `SetLocal` | Generic helper: extracts a `T` up front, then runs the rest of the request inside `T::scope(...)` — the mechanism `PaginationMiddleware` is built on |
 
-## The `viewset` module (feature `viewset`)
-
-A small, Django-REST-Framework-inspired CRUD toolkit for building admin-style REST
-APIs on `actix-web` + `sqlx` + **Postgres** (the current `Entity` trait is bound to
-`FromRow<'r, PgRow>`; SQLite support is not present in this snapshot).
-
-Request flow: `ViewSet → Service → Repository → Database`. Each layer is a trait with
-default implementations built from `Entity` metadata, so a new resource typically
-needs only a handful of `impl` blocks plus entity metadata (usually generated via
-`#[derive(Entity)]` from the `viewset-macros` crate).
-
-| Item | Role |
-|---|---|
-| `Entity` | Static metadata: table/PK/column names, `CreateDto`/`UpdateDto`/`ResponseDto`, searchable/sortable/filterable columns, optional soft-delete column |
-| `Repository` | Database access only. Default methods build dynamic SQL from `Entity` metadata via `sqlx::QueryBuilder`; override any method for custom SQL |
-| `Service` | Business logic layer. Default methods delegate to `Repository`; override `before_*`/`after_*` hooks for validation, auth checks, transactions, events, or caching |
-| `ViewSet` | HTTP layer. `configure()` registers the standard list/retrieve/create/update/delete routes; override individual `handle_*` methods to customize |
-| `RequestContext<U>` | Per-request bag of `db`, optional authenticated `user`, `permissions`, `tenant_id`, `request_id`, `trace_id`, `locale`. Applications implement `FromRequest` for their own `RequestContext<YourUser>` |
-| `ApiError` / `ApiResult<T>` | Shared error enum implementing `ResponseError`, with `sqlx::Error` conversion |
-| `SqlType` / `SqlValue` / `Field` | Typed column metadata so inserts/updates bind native Postgres types instead of everything going through `jsonb` |
 
 ## Testing
 

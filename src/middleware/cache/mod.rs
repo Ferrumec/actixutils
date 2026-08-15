@@ -16,11 +16,11 @@
 //! See [`middleware`] for the full behavioural contract (cache key
 //! derivation, cache-control handling, streaming-body limitations).
 
-mod memory;
 mod middleware;
 mod store;
+#[cfg(test)]
+mod test;
 mod types;
-
 pub use middleware::{Cache, CacheMiddleware};
 pub use store::CacheStore;
 pub use types::CachedResponse;

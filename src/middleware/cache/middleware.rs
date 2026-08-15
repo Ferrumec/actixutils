@@ -11,7 +11,6 @@
 use std::future::{Ready, ready};
 use std::rc::Rc;
 use std::sync::Arc;
-use std::time::Duration;
 
 use actix_web::body::{BodySize, BoxBody, MessageBody};
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform, forward_ready};
@@ -19,8 +18,8 @@ use actix_web::http::{Method, header};
 use actix_web::{Error, HttpResponse};
 use futures_util::future::LocalBoxFuture;
 
-use super::store::CacheStore;
 use super::types::CachedResponse;
+use crate::Store;
 
 /// Middleware factory. Wrap a route or scope with `Cache::new(store)`.
 ///
@@ -29,22 +28,13 @@ use super::types::CachedResponse;
 /// ```
 #[derive(Clone)]
 pub struct Cache {
-    store: Arc<dyn CacheStore>,
-    ttl: Duration,
+    store: Arc<dyn Store<String, CachedResponse>>,
 }
 
 impl Cache {
     /// Default TTL is 60 seconds; override with [`Cache::ttl`].
-    pub fn new(store: Arc<dyn CacheStore>) -> Self {
-        Self {
-            store,
-            ttl: Duration::from_secs(60),
-        }
-    }
-
-    pub fn ttl(mut self, ttl: Duration) -> Self {
-        self.ttl = ttl;
-        self
+    pub fn new(store: Arc<dyn Store<String, CachedResponse>>) -> Self {
+        Self { store }
     }
 }
 
@@ -64,15 +54,13 @@ where
         ready(Ok(CacheMiddleware {
             service: Rc::new(service),
             store: self.store.clone(),
-            ttl: self.ttl,
         }))
     }
 }
 
 pub struct CacheMiddleware<S> {
     service: Rc<S>,
-    store: Arc<dyn CacheStore>,
-    ttl: Duration,
+    store: Arc<dyn Store<String, CachedResponse>>,
 }
 
 /// `host + path + query`. Fragments are never part of an HTTP request, so
@@ -135,11 +123,10 @@ where
 
         let key = cache_key(&req);
         let store = self.store.clone();
-        let ttl = self.ttl;
         let service = self.service.clone();
 
         Box::pin(async move {
-            if let Some(cached) = store.get(&key).await {
+            if let Ok(Some(cached)) = store.get(&key).await {
                 let (http_req, _) = req.into_parts();
                 let response = cached.into_http_response();
                 return Ok(ServiceResponse::new(http_req, response));
@@ -184,7 +171,9 @@ where
             };
 
             let cached_response = CachedResponse::new(status, headers.clone(), bytes.clone());
-            store.set(&key, cached_response, ttl).await;
+            if let Err(e) = store.set(key, cached_response).await {
+                tracing::error!("Error in setting cache value: {}", e);
+            };
 
             let mut builder = HttpResponse::build(status);
             for (name, value) in headers {

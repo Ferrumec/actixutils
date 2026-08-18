@@ -13,7 +13,7 @@ use std::error::Error;
 /// this trait has no TTL concept: expiration, if any, is entirely up to the
 /// implementation.
 #[async_trait::async_trait]
-pub trait Store<K, V> {
+pub trait Store<K, V>: Send + Sync {
     /// Look up the value stored under `key`, if any.
     async fn get(&self, key: &K) -> Result<Option<V>, Box<dyn Error>>;
 

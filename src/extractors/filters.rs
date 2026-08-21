@@ -10,7 +10,7 @@ use actix_web::{
 use futures_util::future::LocalBoxFuture;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-
+use serde::Deserialize;
 /// Extractor that collects query-string parameters into a `HashMap`.
 ///
 /// If [`middleware::PathParams`](crate::middleware::PathParams) (or any
@@ -18,7 +18,7 @@ use std::ops::{Deref, DerefMut};
 /// request extensions, that value is reused as-is; otherwise this parses
 /// the raw query string directly. Derefs to `HashMap<String, String>` for
 /// convenient lookups.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Filters(pub HashMap<String, String>);
 
 impl Deref for Filters {

@@ -29,6 +29,19 @@ impl Deref for Filters {
     }
 }
 
+impl From<HashMap<String, String>> for Filters{
+    fn from(value:HashMap<String, String>)->Self{
+        Filters(value)
+    }
+}
+
+impl From<HashMap<&str, String>> for Filters{
+    fn from(value:HashMap<&str, String>)->Self{
+        let value:HashMap<String, String> = value.iter().map(|(k,v)|(k.to_string(),v.clone())).collect();
+        Filters(value)
+    }
+}
+
 impl DerefMut for Filters {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0

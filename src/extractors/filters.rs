@@ -8,9 +8,9 @@ use actix_web::{
     Error, FromRequest, HttpMessage, HttpRequest, dev::Payload, error::ErrorBadRequest, web,
 };
 use futures_util::future::LocalBoxFuture;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-use serde::Deserialize;
 /// Extractor that collects query-string parameters into a `HashMap`.
 ///
 /// If [`middleware::PathParams`](crate::middleware::PathParams) (or any
@@ -29,15 +29,18 @@ impl Deref for Filters {
     }
 }
 
-impl From<HashMap<String, String>> for Filters{
-    fn from(value:HashMap<String, String>)->Self{
+impl From<HashMap<String, String>> for Filters {
+    fn from(value: HashMap<String, String>) -> Self {
         Filters(value)
     }
 }
 
-impl From<HashMap<&str, String>> for Filters{
-    fn from(value:HashMap<&str, String>)->Self{
-        let value:HashMap<String, String> = value.iter().map(|(k,v)|(k.to_string(),v.clone())).collect();
+impl From<HashMap<&str, String>> for Filters {
+    fn from(value: HashMap<&str, String>) -> Self {
+        let value: HashMap<String, String> = value
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.clone()))
+            .collect();
         Filters(value)
     }
 }

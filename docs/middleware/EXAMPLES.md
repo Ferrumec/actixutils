@@ -71,46 +71,68 @@ response latency alone could reveal whether a lookup short-circuited.
 
 ## `RateLimiter<T>` — sliding-window rate limiting
 
-The key type must implement `GetId`. Here it's keyed on client IP via a
-custom extractor; swap in a JWT-based extractor for per-user limits (see
-TUTORIALS.md §3).
+`RateLimiter::new` takes a backing `Arc<dyn locals::Store<T::Id, VecDeque<Instant>>>`
+— there's no default in-memory store shipped with the crate, so supply a small
+one (a `HashMap` behind an `RwLock` is enough for a single process). The key
+type must implement `GetId`; here it's keyed on the crate's built-in
+`ClientIp` extractor (see [`ClientIpMiddleware`](#clientipmiddleware--client-ip--trusted-proxy-resolution)
+below for how `ClientIp` gets populated). Swap in a JWT-based extractor for
+per-user limits (see TUTORIALS.md §3).
 
 ```rust
-use actixutils::middleware::RateLimiter;
-use actixutils::locals::rate_limiter::GetId;
-use actix_web::{web, App, FromRequest, HttpRequest, dev::Payload};
-use std::{future::{ready, Ready}, net::IpAddr, time::Duration};
+use actixutils::extractors::ClientIp;
+use actixutils::locals::Store;
+use actixutils::middleware::{ClientIpMiddleware, RateLimiter};
+use actixutils::locals::ProxyConfig;
+use actix_web::{web, App};
+use async_trait::async_trait;
+use std::collections::{HashMap, VecDeque};
+use std::error::Error;
+use std::net::IpAddr;
+use std::sync::{Arc, Instant};
+use std::time::Duration;
+use tokio::sync::RwLock;
 
-struct ClientIp(IpAddr);
-
-impl GetId for ClientIp {
-    type Id = IpAddr;
-    fn id(&self) -> IpAddr { self.0 }
+struct MemoryRateStore {
+    inner: RwLock<HashMap<IpAddr, VecDeque<Instant>>>,
 }
 
-impl FromRequest for ClientIp {
-    type Error = actix_web::Error;
-    type Future = Ready<Result<Self, Self::Error>>;
-
-    fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
-        let ip = req.peer_addr().map(|a| a.ip()).unwrap_or([0, 0, 0, 0].into());
-        ready(Ok(ClientIp(ip)))
+#[async_trait]
+impl Store<IpAddr, VecDeque<Instant>> for MemoryRateStore {
+    async fn get(&self, key: &IpAddr) -> Result<Option<VecDeque<Instant>>, Box<dyn Error>> {
+        Ok(self.inner.read().await.get(key).cloned())
+    }
+    async fn set(&self, key: &IpAddr, value: VecDeque<Instant>) -> Result<(), Box<dyn Error>> {
+        self.inner.write().await.insert(*key, value);
+        Ok(())
+    }
+    async fn delete(&self, key: &IpAddr) -> Result<(), Box<dyn Error>> {
+        self.inner.write().await.remove(key);
+        Ok(())
+    }
+    async fn clear(&self) -> Result<(), Box<dyn Error>> {
+        self.inner.write().await.clear();
+        Ok(())
     }
 }
 
+let store = Arc::new(MemoryRateStore { inner: RwLock::new(HashMap::new()) });
+
 App::new().service(
     web::scope("/public")
-        .wrap(RateLimiter::<ClientIp>::new(20, Duration::from_secs(60)))
+        .wrap(ClientIpMiddleware::new(ProxyConfig::new(vec![]))) // populates ClientIp
+        .wrap(RateLimiter::<ClientIp>::new(store, 20, Duration::from_secs(60)))
         .route("/search", web::get().to(search_handler)),
 );
 # async fn search_handler() -> actix_web::HttpResponse { actix_web::HttpResponse::Ok().finish() }
 ```
 
 Requests over the limit receive `429 Too Many Requests` and never reach
-`search_handler`. If the identity extractor itself fails (e.g. a JWT-based
-key with no valid token), the request is **not** rejected by `RateLimiter` —
-it passes through unlimited, so pair it with an auth middleware if you need
-unauthenticated requests blocked outright.
+`search_handler`. If the identity extractor itself fails (e.g. `ClientIp`
+without `ClientIpMiddleware` having run, or a JWT-based key with no valid
+token), the request is **not** rejected by `RateLimiter` — it passes through
+unlimited, so pair it with an auth middleware (or `ClientIpMiddleware`, as
+above) if you need requests without a resolvable identity blocked outright.
 
 ---
 
@@ -269,13 +291,22 @@ async fn list_items() -> HttpResponse {
 
 ---
 
-## `Session<T>` / `SessionMiddleware<Store>` — cookie sessions
+## `Session<T>` / `SessionMiddleware<T>` — cookie sessions
+
+`Session<T>` lives in `actixutils::extractors` (re-exported as
+`actixutils::Session`); `SessionMiddleware<T>` lives in
+`actixutils::middleware`. Both are generic over your own session type `T`,
+and `SessionMiddleware<T>` is backed by the same general-purpose
+`locals::Store<Uuid, T>` trait used by `RateLimiter` and `Cache` — there is
+no separate `SessionStore` trait.
 
 ```rust
-use actixutils::middleware::{Session, SessionMiddleware, SessionStore};
-use actix_web::{web, App, HttpResponse, Error};
+use actixutils::{Session, Store};
+use actixutils::middleware::SessionMiddleware;
+use actix_web::{web, App, HttpResponse};
 use async_trait::async_trait;
-use std::{collections::HashMap, sync::{Arc, Mutex}};
+use std::{collections::HashMap, error::Error, sync::Arc};
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -285,27 +316,29 @@ struct CartSession {
 
 #[derive(Default)]
 struct InMemorySessionStore {
-    data: Mutex<HashMap<Uuid, CartSession>>,
+    data: RwLock<HashMap<Uuid, CartSession>>,
 }
 
 #[async_trait]
-impl SessionStore for InMemorySessionStore {
-    type Session = CartSession;
-
-    async fn load(&self, session_id: &Uuid) -> Result<Option<CartSession>, Error> {
-        Ok(self.data.lock().unwrap().get(session_id).cloned())
+impl Store<Uuid, CartSession> for InMemorySessionStore {
+    async fn get(&self, session_id: &Uuid) -> Result<Option<CartSession>, Box<dyn Error>> {
+        Ok(self.data.read().await.get(session_id).cloned())
     }
-    async fn save(&self, session_id: &Uuid, session: &CartSession) -> Result<(), Error> {
-        self.data.lock().unwrap().insert(*session_id, session.clone());
+    async fn set(&self, session_id: &Uuid, session: CartSession) -> Result<(), Box<dyn Error>> {
+        self.data.write().await.insert(*session_id, session);
         Ok(())
     }
-    async fn delete(&self, session_id: &Uuid) -> Result<(), Error> {
-        self.data.lock().unwrap().remove(session_id);
+    async fn delete(&self, session_id: &Uuid) -> Result<(), Box<dyn Error>> {
+        self.data.write().await.remove(session_id);
+        Ok(())
+    }
+    async fn clear(&self) -> Result<(), Box<dyn Error>> {
+        self.data.write().await.clear();
         Ok(())
     }
 }
 
-let store = Arc::new(InMemorySessionStore::default());
+let store: Arc<dyn Store<Uuid, CartSession>> = Arc::new(InMemorySessionStore::default());
 
 App::new()
     .wrap(SessionMiddleware::new(store).cookie_name("cart_session"))
@@ -326,7 +359,7 @@ async fn add_to_cart(session: Session<CartSession>) -> HttpResponse {
 - `session.read().await` gives a read-only view without marking anything
   dirty. `session.write().await` marks the session dirty regardless of
   whether you actually mutate it, so the middleware persists it via
-  `store.save()` after the handler returns. If you never call `.write()`,
+  `store.set()` after the handler returns. If you never call `.write()`,
   nothing is saved — the middleware skips the store round-trip for read-only
   requests.
 
@@ -462,3 +495,170 @@ work exactly as they would in a normal Actix route.
 `from_reader`, or `from_json`): every `bit_id` must be `0..128`, and no two
 entries may share the same `(method, route)` pair — construction returns a
 `PermissionError` otherwise.
+
+---
+
+## `Cache` — GET-only HTTP response caching
+
+Like `RateLimiter` and `SessionMiddleware`, `Cache` is backed by the general
+`locals::Store<K, V>` trait — here `Store<String, cache::CachedResponse>` —
+not by the `cache::CacheStore` trait (which exists in `src/middleware/cache/store.rs`
+but is not currently wired into `Cache`; implement `locals::Store` instead).
+
+```rust
+use actixutils::locals::Store;
+use actixutils::middleware::cache::CachedResponse;
+use actixutils::middleware::Cache;
+use actix_web::{web, App};
+use async_trait::async_trait;
+use std::{collections::HashMap, error::Error, sync::Arc, time::{Duration, Instant}};
+use tokio::sync::RwLock;
+
+struct MemoryCache {
+    entries: RwLock<HashMap<String, (CachedResponse, Instant)>>,
+    ttl: Duration,
+}
+
+#[async_trait]
+impl Store<String, CachedResponse> for MemoryCache {
+    async fn get(&self, key: &String) -> Result<Option<CachedResponse>, Box<dyn Error>> {
+        let entries = self.entries.read().await;
+        Ok(match entries.get(key) {
+            Some((resp, expires_at)) if Instant::now() < *expires_at => Some(resp.clone()),
+            _ => None,
+        })
+    }
+    async fn set(&self, key: &String, value: CachedResponse) -> Result<(), Box<dyn Error>> {
+        self.entries
+            .write()
+            .await
+            .insert(key.clone(), (value, Instant::now() + self.ttl));
+        Ok(())
+    }
+    async fn delete(&self, key: &String) -> Result<(), Box<dyn Error>> {
+        self.entries.write().await.remove(key);
+        Ok(())
+    }
+    async fn clear(&self) -> Result<(), Box<dyn Error>> {
+        self.entries.write().await.clear();
+        Ok(())
+    }
+}
+
+let store = Arc::new(MemoryCache {
+    entries: RwLock::new(HashMap::new()),
+    ttl: Duration::from_secs(60),
+});
+
+App::new().service(
+    web::scope("/catalog")
+        .wrap(Cache::new(store))
+        .route("/products", web::get().to(list_products)),
+);
+# async fn list_products() -> actix_web::HttpResponse { actix_web::HttpResponse::Ok().finish() }
+```
+
+Behaviour to keep in mind:
+
+- Only `GET` requests are ever looked up or stored; every other method
+  passes straight through.
+- The cache key is `host + path + query` — it never looks at headers,
+  cookies, or auth state, so don't put this in front of routes whose
+  response depends on who's asking.
+- A response is skipped from caching if its status isn't a 2xx, if it sets
+  `Set-Cookie`, or if its `Cache-Control` contains `no-store` or `private`.
+- Only responses with a known, finite body length are buffered and cached;
+  streaming or chunked responses are returned as-is and never cached.
+- TTL is entirely up to your `Store` implementation — `Cache` itself has no
+  `.ttl()` method; expire entries however your `set`/`get` logic decides to
+  (as in `MemoryCache` above).
+
+---
+
+## `Singleflight<K, KeyFn>` — request coalescing
+
+Groups concurrent requests that map to the same key so only one of them
+actually reaches the wrapped service; the rest wait and receive a cloned
+copy of the leader's response.
+
+```rust
+use actixutils::middleware::Singleflight;
+use actix_web::{web, App};
+
+App::new().service(
+    web::scope("/reports")
+        .wrap(Singleflight::new(|req: &actix_web::dev::ServiceRequest| {
+            // Coalesce by path + query, so two clients requesting the same
+            // expensive report at once only compute it once.
+            req.uri().to_string()
+        }))
+        .route("/{name}", web::get().to(generate_report)),
+);
+# async fn generate_report() -> actix_web::HttpResponse { actix_web::HttpResponse::Ok().finish() }
+```
+
+The response body is fully buffered so it can be cloned to every follower,
+so this is best suited to endpoints with bounded, non-streaming responses
+(e.g. an expensive read that several clients might request at once) rather
+than large downloads. If the leader's execution errors, panics, or is
+cancelled, all waiting followers receive an error instead of hanging
+forever.
+
+---
+
+## `TimeoutMiddleware` — per-request deadline
+
+```rust
+use actixutils::middleware::TimeoutMiddleware;
+use actix_web::{web, App};
+use std::time::Duration;
+
+App::new().service(
+    web::scope("/slow-integration")
+        .wrap(TimeoutMiddleware::new(Duration::from_secs(5)))
+        .route("/sync", web::post().to(sync_handler)),
+);
+# async fn sync_handler() -> actix_web::HttpResponse { actix_web::HttpResponse::Ok().finish() }
+```
+
+If `sync_handler` (plus anything else in the wrapped chain) hasn't produced a
+response within 5 seconds, the in-flight future is dropped and the client
+receives `504 Gateway Timeout` instead.
+
+---
+
+## `ClientIpMiddleware` — client IP / trusted-proxy resolution
+
+Resolves the real client IP even when requests pass through one or more
+reverse proxies, without blindly trusting a spoofable `X-Forwarded-For`
+header from just anyone.
+
+```rust
+use actixutils::extractors::ClientIp;
+use actixutils::locals::ProxyConfig;
+use actixutils::middleware::ClientIpMiddleware;
+use actix_web::{web, App, HttpResponse};
+
+let proxy_config = ProxyConfig::new(vec![
+    "10.0.0.0/8".parse().unwrap(),      // internal load balancer subnet
+    "172.16.0.0/12".parse().unwrap(),
+]);
+
+App::new()
+    .wrap(ClientIpMiddleware::new(proxy_config))
+    .route("/whoami", web::get().to(whoami));
+
+async fn whoami(ip: ClientIp) -> HttpResponse {
+    HttpResponse::Ok().body(ip.ip().to_string())
+}
+```
+
+- If the direct peer address is in a trusted proxy network, the middleware
+  walks `X-Forwarded-For` from right to left (closest hop to furthest) and
+  returns the first address that *isn't* itself a trusted proxy — i.e. the
+  original client.
+- If the peer isn't a trusted proxy, its address is used directly and
+  `X-Forwarded-For` is ignored (so an untrusted client can't spoof its own
+  IP by setting the header).
+- The `ClientIp` extractor returns `500 Internal Server Error` if
+  `ClientIpMiddleware` never ran for this request — always pair the two.

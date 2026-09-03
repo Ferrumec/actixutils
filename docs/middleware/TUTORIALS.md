@@ -122,23 +122,62 @@ impl GetId for Jwt<Identity> {
 }
 ```
 
+`RateLimiter::new` also needs a backing store — `Arc<dyn locals::Store<Uuid, VecDeque<Instant>>>`
+here, since `Jwt<Identity>::Id` is `Uuid`. actixutils doesn't ship a default
+in-memory `Store`, so supply a minimal one (a `HashMap` behind a lock is
+enough for a single process; see `src/middleware/test_session.rs` for the
+same pattern used with sessions):
+
+```rust
+use actixutils::locals::Store;
+use async_trait::async_trait;
+use std::{collections::{HashMap, VecDeque}, error::Error, sync::{Arc, Instant}};
+use tokio::sync::RwLock;
+use uuid::Uuid;
+
+struct MemoryRateStore {
+    inner: RwLock<HashMap<Uuid, VecDeque<Instant>>>,
+}
+
+#[async_trait]
+impl Store<Uuid, VecDeque<Instant>> for MemoryRateStore {
+    async fn get(&self, key: &Uuid) -> Result<Option<VecDeque<Instant>>, Box<dyn Error>> {
+        Ok(self.inner.read().await.get(key).cloned())
+    }
+    async fn set(&self, key: &Uuid, value: VecDeque<Instant>) -> Result<(), Box<dyn Error>> {
+        self.inner.write().await.insert(*key, value);
+        Ok(())
+    }
+    async fn delete(&self, key: &Uuid) -> Result<(), Box<dyn Error>> {
+        self.inner.write().await.remove(key);
+        Ok(())
+    }
+    async fn clear(&self) -> Result<(), Box<dyn Error>> {
+        self.inner.write().await.clear();
+        Ok(())
+    }
+}
+```
+
 Then wrap the scope:
 
 ```rust
 use actixutils::middleware::RateLimiter;
 use std::time::Duration;
 
+let rate_store = Arc::new(MemoryRateStore { inner: RwLock::new(HashMap::new()) });
+
 web::scope("/api")
     .wrap(Auth { validator: signer.clone() })
-    .wrap(RateLimiter::<Jwt<Identity>>::new(100, Duration::from_secs(60)))
+    .wrap(RateLimiter::<Jwt<Identity>>::new(rate_store, 100, Duration::from_secs(60)))
     .route("/me", web::get().to(me_handler));
 ```
 
 This allows 100 requests per user per rolling 60-second window. Requests over
 the limit get `429 Too Many Requests` without the handler ever running. The
-store is an in-memory `DashMap`, so this is per-process — fine for a single
-instance, but for multi-node deployments you'd need a shared backing store
-(this middleware doesn't provide one out of the box).
+`MemoryRateStore` above is per-process — fine for a single instance, but for
+multi-node deployments implement `Store` against a shared backend (Redis or
+similar) instead.
 
 > **Note on ordering:** put `RateLimiter` *inside* `Auth` (i.e. `.wrap(Auth)`
 > then `.wrap(RateLimiter)`, remembering `.wrap()` calls apply outer-to-inner
@@ -154,18 +193,19 @@ instance, but for multi-node deployments you'd need a shared backing store
 For any POST/PUT/PATCH endpoint where a network retry could double-apply a
 mutation (charging a card, creating an order), wrap it in `Idempotency`.
 
-You need a store. For a quick start, an in-memory one implementing
-`IdempotencyStore`:
+You need a store. Note that `locals::IdempotencyStore` is its own trait
+family (`acquire`/`get`/`complete`/`release`), separate from the general
+`locals::Store<K, V>` trait used by `RateLimiter`/`Cache`/`SessionMiddleware`
+— it isn't a `Store` implementation. For a quick start, an in-memory one:
 
 ```rust
 use actixutils::locals::{IdempotencyStore, IdempotencyState, CachedResponse};
 use async_trait::async_trait;
-use dashmap::DashMap;
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::{Arc, Mutex}, time::Duration};
 
 #[derive(Default)]
 struct MemoryIdempotencyStore {
-    entries: DashMap<String, IdempotencyState>,
+    entries: Mutex<HashMap<String, IdempotencyState>>,
 }
 
 #[async_trait]
@@ -173,24 +213,43 @@ impl IdempotencyStore for MemoryIdempotencyStore {
     type Error = std::convert::Infallible;
 
     async fn acquire(&self, key: &str, _ttl: Duration) -> Result<bool, Self::Error> {
-        Ok(self.entries.insert(key.to_string(), IdempotencyState::InProgress).is_none())
+        let mut entries = self.entries.lock().unwrap();
+        if entries.contains_key(key) {
+            Ok(false)
+        } else {
+            entries.insert(key.to_string(), IdempotencyState::InProgress);
+            Ok(true)
+        }
     }
 
     async fn get(&self, key: &str) -> Result<Option<IdempotencyState>, Self::Error> {
-        Ok(self.entries.get(key).map(|v| v.clone()))
+        Ok(match self.entries.lock().unwrap().get(key) {
+            Some(IdempotencyState::InProgress) => Some(IdempotencyState::InProgress),
+            Some(IdempotencyState::Completed(r)) => Some(IdempotencyState::Completed(r.clone())),
+            None => None,
+        })
     }
 
     async fn complete(&self, key: &str, response: CachedResponse) -> Result<(), Self::Error> {
-        self.entries.insert(key.to_string(), IdempotencyState::Completed(response));
+        self.entries
+            .lock()
+            .unwrap()
+            .insert(key.to_string(), IdempotencyState::Completed(response));
         Ok(())
     }
 
     async fn release(&self, key: &str) -> Result<(), Self::Error> {
-        self.entries.remove(key);
+        self.entries.lock().unwrap().remove(key);
         Ok(())
     }
 }
 ```
+
+This single-mutex version is not perfectly atomic under extreme concurrency
+on `acquire` (a real implementation would want an atomic check-and-insert,
+which `HashMap::entry` under a single `Mutex` does provide here) — for
+production, back this with Redis (`SET key val NX EX ttl`) or an equivalent
+atomic primitive.
 
 Wire it into the payments scope:
 
@@ -316,7 +375,7 @@ App::new()
                 web::scope("/items")
                     .wrap(Permissions::<Identity>::new(permissions.clone())) // 6. authorize
                     .wrap(PaginationMiddleware)                              // 5. list params
-                    .wrap(RateLimiter::<Jwt<Identity>>::new(100, Duration::from_secs(60))) // 3.
+                    .wrap(RateLimiter::<Jwt<Identity>>::new(rate_store.clone(), 100, Duration::from_secs(60))) // 3.
                     .route("", web::get().to(list_items))
                     .route("", web::post().to(create_item)),
             )
@@ -329,6 +388,7 @@ App::new()
 ```
 
 From here, see **EXAMPLES.md** for standalone snippets covering
-`ResponseEqualizer`, `Session<T>`, `ReadContext<T>`, `AttachLocal<T>`, and the
+`ResponseEqualizer`, `Session<T>`, `ReadContext<T>`, `AttachLocal<T>`, `Cache`,
+`Singleflight<K, KeyFn>`, `TimeoutMiddleware`, `ClientIpMiddleware`, and the
 `identity`/`authority` helper functions that weren't needed in this
 walkthrough.

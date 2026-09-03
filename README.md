@@ -1,18 +1,19 @@
 # actixutils
 
 Reusable middleware, extractors, and framework-agnostic building blocks for
-[Actix-web](https://actix.rs/) applications: JWT authentication, cookie sessions,
-rate limiting, idempotency, pagination, request IDs, timing-attack mitigation,
-typed-eventbus context propagation, and (behind the `viewset` feature) a small
-Django-REST-Framework-inspired CRUD toolkit over `sqlx` + Postgres.
+[Actix-web](https://actix.rs/) applications: JWT authentication, cookie
+sessions, rate limiting, idempotency, GET-response caching, request
+coalescing, pagination, request IDs, per-request timeouts, trusted-proxy
+client-IP resolution, bitmask route permissions, timing-attack mitigation,
+and typed-eventbus context propagation.
 
-Note that this project is still a work in progress and is still going through changes rapidly.
-We deeply welcome ideas for feature additions and optimizations.
+Note that this project is still a work in progress and is still going
+through changes rapidly. We deeply welcome ideas for feature additions and
+optimizations.
 
-Here is [what's new in v0.4](/CHANGELOG.md)
+See [CHANGELOG.md](/CHANGELOG.md) for release history.
 
-This README documents the crate as it currently exists in `src/`. It doesn't cover
-work in progress that hasn't landed yet (e.g. `viewset`'s SQLite support).
+This README documents the crate as it currently exists in `src/`.
 
 [Documentation](https://ferrumec.github.io/actixutils/)
 
@@ -23,13 +24,15 @@ The crate is split into three top-level modules, by whether an item depends on
 
 | Module | Contains |
 |---|---|
-| `extractors` | Types implementing `FromRequest`: `Jwt<T>`, `Filters` |
-| `middleware` | Types implementing `Transform`: the full middleware suite, including the `Session<T>` extractor and its `SessionMiddleware` |
+| `extractors` | Types implementing `FromRequest`: `Jwt<T>`, `Session<T>`, `Filters`, `ClientIp` |
+| `middleware` | Types implementing `Transform`: the full middleware suite, including `SessionMiddleware` |
 | `locals` | Framework-agnostic pieces: claim structs, signing/validation traits, store traits, task-local state |
 
+Plus a standalone `pubkey` module (see [JWT authentication](#jwt-authentication-jwt-feature) below).
 
 The most commonly used `extractors` and `locals` items are re-exported at the crate
-root, so `actixutils::Jwt`, `actixutils::Identity`, etc. work without a submodule path.
+root, so `actixutils::Jwt`, `actixutils::Identity`, `actixutils::Session`, etc. work
+without a submodule path.
 
 ## Feature flags
 
@@ -38,8 +41,10 @@ root, so `actixutils::Jwt`, `actixutils::Identity`, etc. work without a submodul
 | `jwt` | JWT support: the `Jwt<T>` extractor, `middleware::Auth`, `HS256Signer`, `RS256Signer`/`RS256Validator`, the `identity`/`authority` helper functions |
 | `es` | Event-stream context propagation: `locals::Context`, `middleware::{Context, ReadContext}` (requires `typed-eventbus`) |
 
-None of these are enabled by default — enable whichever your application needs in
-`Cargo.toml`.
+Neither is enabled by default — enable whichever your application needs in
+`Cargo.toml`. Everything else described below (extractors, sessions, rate
+limiting, idempotency, caching, coalescing, timeouts, client IP, pagination,
+permissions, request IDs) is available without any feature flag.
 
 ## Quick start
 
@@ -106,47 +111,70 @@ middleware.
 read from the `validate.key` environment variable — handy for RS256 downstream
 services that need to fetch the issuing service's public key.
 
+## The `Store<K, V>` trait
+
+Several pieces of the crate need a generic, async, get/set/delete/clear
+key-value backend, and all of them share the same trait:
+`locals::Store<K, V>`. You implement it once per backend (in-memory, Redis,
+a database table, ...) and reuse it for:
+
+- **`middleware::RateLimiter<T>`** — `Store<T::Id, VecDeque<Instant>>`
+- **`middleware::Cache`** — `Store<String, cache::CachedResponse>`
+- **`extractors::Session<T>` / `middleware::SessionMiddleware<T>`** — `Store<Uuid, T>`
+
+`actixutils` does not ship a first-party in-memory implementation of
+`Store` — you supply one (a `HashMap` behind a lock is enough for a single
+process; see the store implementation in `src/middleware/test_session.rs`
+for a minimal reference). This is a separate, more general trait from
+`locals::IdempotencyStore` and `middleware::cache::CacheStore`, which are
+TTL-aware trait families used only by `Idempotency`, as documented below.
+
 ## Sessions
 
-Cookie-based, server-side sessions live in `middleware`, **not** `extractors`:
+Cookie-based, server-side sessions are split across two modules:
 
-- **`middleware::Session<T>`** — a `FromRequest` handle to the current request's
-  session value. `read()`/`write()` return async `RwLock` guards; any `write()` marks
-  the session dirty.
-- **`middleware::SessionMiddleware<S>`** — resolves the session cookie (default name
+- **`extractors::Session<T>`** (re-exported as `actixutils::Session`) — a
+  `FromRequest` handle to the current request's session value. `read()`/`write()`
+  return async `RwLock` guards; any `write()` marks the session dirty.
+- **`middleware::SessionMiddleware<T>`** — resolves the session cookie (default name
   `"session"`, configurable via `.cookie_name(...)`), loads/saves through a
-  caller-supplied async store, and persists dirty sessions back after the handler
-  runs. `SessionMiddleware::new` falls back to a fresh default session on a
-  missing/invalid cookie; `SessionMiddleware::required` instead rejects the request
-  with `401 Unauthorized`.
-- The backing store trait (`load`/`save`/`delete`) is defined locally inside
-  `middleware::session` and implemented by the application.
+  caller-supplied `Arc<dyn locals::Store<Uuid, T>>`, and persists dirty sessions back
+  after the handler runs. `SessionMiddleware::new` falls back to a fresh default
+  session on a missing/invalid cookie (and issues a new cookie on the response);
+  `SessionMiddleware::required` instead rejects the request with `401 Unauthorized`.
 
-> **Note:** `locals::SessionStore<T>` is a separate, synchronous session-store trait
-> re-exported at the crate root. It is **not** wired into `middleware::Session` /
-> `SessionMiddleware` — those use their own async trait. `locals::SessionStore<T>` is
-> provided as a standalone building block if you want to roll your own session
-> lookup outside the built-in middleware.
+There is no separate, session-specific store trait — `SessionMiddleware<T>` is
+backed directly by the general-purpose `locals::Store<Uuid, T>` described above, so
+any `Store` implementation you already have for rate limiting or caching can back
+sessions too (with a different `T`).
 
 ## Middleware suite
 
 | Middleware | What it does |
 |---|---|
-| `Auth<T>` | Validates a Bearer JWT (header or `access_token` cookie) and stores claims in request extensions |
+| `Auth<T>` | Validates a Bearer JWT (header or `access_token` cookie) and stores claims in request extensions *(feature `jwt`)* |
 | `ResponseEqualizer` | Pads every response to a minimum duration (optionally plus random jitter), mitigating timing side-channels on auth/lookup endpoints |
-| `RateLimiter<T>` | Sliding-window per-identity rate limiting; keys on any extractor implementing `locals::rate_limiter::GetId`; in-memory `DashMap` store, single-instance only |
-| `Idempotency<S>` | Caches responses by an `Idempotency-Key` header to prevent duplicate mutations on retried requests; pluggable `IdempotencyStore` |
+| `RateLimiter<T>` | Sliding-window per-identity rate limiting; keys on any extractor implementing `locals::rate_limiter::GetId`; backed by a caller-supplied `Store` |
+| `Idempotency<Store>` | Caches responses by an `Idempotency-Key` header to prevent duplicate mutations on retried requests; pluggable `IdempotencyStore` |
+| `Cache` | GET-only HTTP response caching, keyed on `host + path + query`; backed by a caller-supplied `Store` |
+| `Singleflight<K, KeyFn>` | Request coalescing: concurrent requests that map to the same key share a single execution of the wrapped service |
+| `TimeoutMiddleware` | Fails a request with `504 Gateway Timeout` if it exceeds a fixed duration |
+| `ClientIpMiddleware` | Resolves the real client IP from `X-Forwarded-For`, honouring a configured set of trusted proxy networks; exposed via the `ClientIp` extractor |
+| `PathParams` | Merges matched path parameters into `Filters`, overlaying them on the query string |
 | `RequestId` / `RequestIdStr` | Generates a UUIDv4 per request, records it in the tracing span, stores it in extensions, and returns it as `X-Request-Id` |
 | `Context` / `ReadContext<T>` (feature `es`) | Builds a per-request typed-eventbus publishing context from the request ID and an identity's UUID |
 | `Pagination` / `PaginationMiddleware` | Parses `?page=&limit=` into a task-local, readable anywhere via `Pagination::get()` without threading it through function signatures |
-| `Session<T>` / `SessionMiddleware` | Cookie-based server-side sessions (see above) |
+| `SessionMiddleware<T>` | Cookie-based server-side sessions (see above) |
 | `AttachLocal<T>` / `SetLocal` | Generic helper: extracts a `T` up front, then runs the rest of the request inside `T::scope(...)` — the mechanism `PaginationMiddleware` is built on |
+| `Permissions<P>` (submodule `permission`) | Route-level, `u128`-bitmask RBAC keyed on `(HTTP method, path)`, matched with Actix's native `ResourceDef` syntax |
 
+See [docs/middleware](docs/middleware/index.md) for a design overview, ordering
+guidance, tutorials, and focused examples for each middleware.
 
 ## Testing
 
 `middleware::test_session` (compiled only under `#[cfg(test)]`) contains an
-in-memory `SessionStore` implementation and integration tests exercising
+in-memory `locals::Store<Uuid, T>` implementation and integration tests exercising
 `Session<T>` / `SessionMiddleware` end to end — a useful reference for implementing
 your own store.
 

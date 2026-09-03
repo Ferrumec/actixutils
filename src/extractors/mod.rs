@@ -10,11 +10,11 @@
 //! [`SessionMiddleware`](crate::middleware::SessionMiddleware) has populated the request.
 #[cfg(feature = "jwt")]
 mod auth;
+mod client_ip;
 mod filters;
 mod session;
-mod client_ip;
 #[cfg(feature = "jwt")]
 pub use auth::Jwt;
+pub use client_ip::ClientIp;
 pub use filters::Filters;
 pub use session::Session;
-pub use client_ip::ClientIp;

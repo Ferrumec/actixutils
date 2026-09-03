@@ -23,12 +23,12 @@ mod hs256;
 mod idempotency;
 pub mod pagination;
 mod provider;
+mod proxy_cfg;
 pub mod rate_limiter;
 #[cfg(feature = "jwt")]
 mod rs256;
 mod signer_core;
 mod store;
-mod proxy_cfg;
 pub use proxy_cfg::ProxyConfig;
 #[cfg(feature = "es")]
 pub mod context;

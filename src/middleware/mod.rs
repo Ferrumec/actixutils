@@ -30,8 +30,8 @@
 mod attach_local;
 mod auth;
 mod cache;
-mod coalesce;
 mod client_ip;
+mod coalesce;
 mod constant_time;
 #[cfg(feature = "es")]
 mod context;
@@ -51,8 +51,8 @@ mod timeout;
 pub use attach_local::{AttachLocal, SetLocal};
 pub use auth::Auth;
 pub use cache::{Cache, CacheMiddleware, CacheStore, CachedResponse};
-pub use coalesce::Singleflight;
 pub use client_ip::ClientIpMiddleware;
+pub use coalesce::Singleflight;
 pub use constant_time::ResponseEqualizer;
 #[cfg(feature = "es")]
 pub use context::{Context, GetId, ReadContext};

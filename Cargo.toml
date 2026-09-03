@@ -35,6 +35,7 @@ typed-eventbus = { version = "0.2.1", optional = true }
 serde_json = { version = "1.0.150"}
 thiserror = { version = "2.0.18"}
 futures = "0.3.33"
+ipnet = "2.12.1"
 
 [features]
 es = ["typed-eventbus"]

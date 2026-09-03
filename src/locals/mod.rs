@@ -28,7 +28,8 @@ pub mod rate_limiter;
 mod rs256;
 mod signer_core;
 mod store;
-
+mod proxy_cfg;
+pub use proxy_cfg::ProxyConfig;
 #[cfg(feature = "es")]
 pub mod context;
 pub use claims::{Authority, Identity};

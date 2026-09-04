@@ -14,15 +14,9 @@ use std::error::Error;
 /// implementation.
 #[async_trait::async_trait]
 pub trait Store<K, V>: Send + Sync {
-    /// Look up the value stored under `key`, if any.
     async fn get(&self, key: &K) -> Result<Option<V>, Box<dyn Error>>;
 
-    /// Store `value` under `key`, replacing any existing entry.
     async fn set(&self, key: &K, value: V) -> Result<(), Box<dyn Error>>;
 
-    /// Remove the entry stored under `key`, if present.
     async fn delete(&self, key: &K) -> Result<(), Box<dyn Error>>;
-
-    /// Remove every entry from the store.
-    async fn clear(&self) -> Result<(), Box<dyn Error>>;
 }

@@ -23,11 +23,4 @@ impl<K: Clone + Hash + Eq + Send + Sync + 'static, V: Clone + Send + Sync + 'sta
         self.remove(key).await;
         Ok(())
     }
-
-    /// Remove every entry from the store.
-    async fn clear(&self) -> Result<(), Box<dyn Error>> {
-        self.invalidate_all();
-        self.run_pending_tasks().await;
-        Ok(())
-    }
 }

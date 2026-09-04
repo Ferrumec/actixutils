@@ -26,6 +26,8 @@ pub mod pagination;
 mod provider;
 mod proxy_cfg;
 pub mod rate_limiter;
+#[cfg(feature = "redis")]
+mod redis_store;
 #[cfg(feature = "jwt")]
 mod rs256;
 mod signer_core;
@@ -39,6 +41,8 @@ pub use hs256::HS256Signer;
 pub use idempotency::{CachedResponse, IdempotencyState, IdempotencyStore};
 pub use pagination::Pagination;
 pub use provider::Provider;
+#[cfg(feature = "redis")]
+pub use redis_store::RedisCache as RedisStore;
 #[cfg(feature = "jwt")]
 pub use rs256::{RS256Signer, RS256Validator};
 pub use signer_core::{Sign, Validate};

@@ -37,8 +37,10 @@ thiserror = { version = "2.0.18"}
 futures = "0.3.33"
 ipnet = "2.12.1"
 moka = { version = "0.12.16", features = ["future"] }
+redis = { version = "1.6.0", features = ["aio", "tokio-comp", "connection-manager"], optional = true }
+bincode = { version = "2", features = ["serde"], optional = true }
 
 [features]
 es = ["typed-eventbus"]
 jwt = ["jsonwebtoken"]
-
+redis = ["bincode","dep:redis"]

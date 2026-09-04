@@ -36,6 +36,7 @@ serde_json = { version = "1.0.150"}
 thiserror = { version = "2.0.18"}
 futures = "0.3.33"
 ipnet = "2.12.1"
+moka = { version = "0.12.16", features = ["future"] }
 
 [features]
 es = ["typed-eventbus"]

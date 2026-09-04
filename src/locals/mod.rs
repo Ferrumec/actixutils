@@ -21,6 +21,7 @@ mod claims;
 #[cfg(feature = "jwt")]
 mod hs256;
 mod idempotency;
+mod moka_store;
 pub mod pagination;
 mod provider;
 mod proxy_cfg;

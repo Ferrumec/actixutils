@@ -25,7 +25,7 @@ type SharedSession<T> = Arc<RwLock<T>>;
 /// the session; any call to `write` marks the session dirty so
 /// [`SessionMiddleware`] persists it via the store after the handler returns.
 pub struct Session<T> {
-    data: SharedSession<T>,
+    pub(crate) data: SharedSession<T>,
     pub(crate) dirty: Arc<AtomicBool>,
 }
 

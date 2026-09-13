@@ -73,10 +73,10 @@
 #[macro_export]
 macro_rules! filters {
     ( $( $k:expr => $v:expr ),* $(,)? ) => {
-        &Filters::from(::std::collections::HashMap::from([$( ($k, $v) ),*]))
+        &actixutils::Filters::from(::std::collections::HashMap::from([$( ($k, $v) ),*]))
     };
     ( $vec:expr ) => {
-        &Filters::from($vec.into_iter().collect::<::std::collections::HashMap<_, _>>())
+        &actixutils::Filters::from($vec.into_iter().collect::<::std::collections::HashMap<_, _>>())
     };
 }
 

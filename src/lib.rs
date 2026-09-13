@@ -70,6 +70,16 @@
 //! | [`middleware`] | Full middleware suite, including [`Session<T>`](middleware::Session) cookie sessions (see module docs) |
 //! | `pubkey::configure` | Actix route that serves the public key at `/.well-known/public-key.pem` |
 
+#[macro_export]
+macro_rules! filters {
+    ( $( $k:expr => $v:expr ),* $(,)? ) => {
+        &Filters::from(::std::collections::HashMap::from([$( ($k, $v) ),*]))
+    };
+    ( $vec:expr ) => {
+        &Filters::from($vec.into_iter().collect::<::std::collections::HashMap<_, _>>())
+    };
+}
+
 pub mod extractors;
 pub mod locals;
 pub mod middleware;
@@ -77,7 +87,7 @@ pub mod pubkey;
 
 #[cfg(feature = "jwt")]
 pub use extractors::Jwt;
-pub use extractors::{Filters, Session};
+pub use extractors::{Filters, ReadSession, Session};
 pub use locals::{Authority, Identity, Provider, Sign, Store, Validate};
 #[cfg(feature = "jwt")]
 pub use locals::{HS256Signer, RS256Signer, RS256Validator};

@@ -29,17 +29,18 @@ impl Deref for Filters {
     }
 }
 
-impl From<HashMap<String, String>> for Filters {
-    fn from(value: HashMap<String, String>) -> Self {
+impl<T: ToString> From<HashMap<String, T>> for Filters {
+    fn from(value: HashMap<String, T>) -> Self {
+        let value = value.into_iter().map(|(k, v)| (k, v.to_string())).collect();
         Filters(value)
     }
 }
 
-impl From<HashMap<&str, String>> for Filters {
-    fn from(value: HashMap<&str, String>) -> Self {
+impl<T: ToString> From<HashMap<&str, T>> for Filters {
+    fn from(value: HashMap<&str, T>) -> Self {
         let value: HashMap<String, String> = value
             .iter()
-            .map(|(k, v)| (k.to_string(), v.clone()))
+            .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
         Filters(value)
     }

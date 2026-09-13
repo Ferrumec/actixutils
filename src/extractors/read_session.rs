@@ -1,5 +1,5 @@
 use crate::extractors::Session;
-use actix_web::{Error, FromRequest, HttpRequest, dev::Payload, error, HttpMessage};
+use actix_web::{Error, FromRequest, HttpMessage, HttpRequest, dev::Payload, error};
 use futures_util::future::LocalBoxFuture;
 use tokio::sync::OwnedRwLockReadGuard;
 

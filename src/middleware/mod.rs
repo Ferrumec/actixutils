@@ -43,6 +43,7 @@ mod path_params;
 mod permission;
 mod rate_limiter;
 mod request_id;
+mod required_session;
 mod session;
 mod test_coalesce;
 #[cfg(test)]
@@ -64,5 +65,6 @@ pub use path_params::PathParams;
 pub use permission::{Permission, PermissionError, PermissionSet, Permissions, Principal};
 pub use rate_limiter::RateLimiter;
 pub use request_id::{RequestId, RequestIdStr};
+pub use required_session::RequiredSession;
 pub use session::SessionMiddleware;
 pub use timeout::TimeoutMiddleware;

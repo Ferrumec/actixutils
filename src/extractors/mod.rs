@@ -12,11 +12,11 @@
 mod auth;
 mod client_ip;
 mod filters;
-mod session;
 mod read_session;
+mod session;
 #[cfg(feature = "jwt")]
 pub use auth::Jwt;
 pub use client_ip::ClientIp;
 pub use filters::Filters;
-pub use session::Session;
 pub use read_session::ReadSession;
+pub use session::Session;

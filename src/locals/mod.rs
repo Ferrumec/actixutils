@@ -46,7 +46,7 @@ pub use redis_store::RedisCache as RedisStore;
 #[cfg(feature = "jwt")]
 pub use rs256::{RS256Signer, RS256Validator};
 pub use signer_core::{Sign, Validate};
-pub use store::Store;
+pub use store::{CacheFactory, Store};
 
 #[cfg(feature = "es")]
 pub use context::{Context, GetId};

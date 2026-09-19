@@ -23,7 +23,7 @@ pub trait Store<K, V>: Send + Sync {
     async fn delete(&self, key: &K) -> Result<(), Box<dyn Error>>;
 }
 
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{Serialize, de::DeserializeOwned};
 
 /// Constructs the [`actixutils::Store`] caches used by each repository.
 ///

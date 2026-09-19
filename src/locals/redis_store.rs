@@ -1,16 +1,14 @@
-use std::{error::Error, marker::PhantomData};
+use std::{error::Error, hash::Hash, marker::PhantomData, sync::Arc, time::Duration};
 
 use crate::Store;
 use crate::locals::store::CacheFactory;
 use redis::{AsyncCommands, aio::ConnectionManager};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::hash::Hash;
-use std::sync::Arc;
-use std::time::Duration;
+use serde::{Serialize, de::DeserializeOwned};
 
 pub struct RedisCache<K, V> {
     connection: ConnectionManager,
     namespace: Vec<u8>,
+    ttl: Duration,
     _marker: PhantomData<fn(K) -> V>,
 }
 
@@ -26,7 +24,7 @@ impl<K, V> RedisCache<K, V> {
     /// becomes keys such as:
     ///
     /// `authnz:cache:<serialized-key>`
-    pub fn new(connection: ConnectionManager, namespace: impl Into<String>) -> Self {
+    pub fn new(connection: ConnectionManager, namespace: impl Into<String>, ttl: Duration) -> Self {
         let namespace = namespace.into();
 
         // The delimiter is important so that:
@@ -43,6 +41,7 @@ impl<K, V> RedisCache<K, V> {
         Self {
             connection,
             namespace,
+            ttl,
             _marker: PhantomData,
         }
     }
@@ -51,7 +50,7 @@ impl<K, V> RedisCache<K, V> {
     where
         K: Serialize,
     {
-        let encoded = bincode::serde::encode_to_vec(key, bincode::config::standard())?;
+        let encoded = serde_json::to_vec(key)?;
 
         let mut redis_key = Vec::with_capacity(self.namespace.len() + encoded.len());
 
@@ -77,8 +76,7 @@ where
 
         match value {
             Some(value) => {
-                let (value, _) =
-                    bincode::serde::decode_from_slice(&value, bincode::config::standard())?;
+                let value = serde_json::from_slice(&value)?;
 
                 Ok(Some(value))
             }
@@ -90,11 +88,13 @@ where
     async fn set(&self, key: &K, value: V) -> Result<(), Box<dyn Error>> {
         let redis_key = self.make_key(key)?;
 
-        let encoded = bincode::serde::encode_to_vec(&value, bincode::config::standard())?;
+        let encoded = serde_json::to_vec(&value)?;
 
         let mut connection = self.connection.clone();
 
-        connection.set::<_, _, ()>(redis_key, encoded).await?;
+        connection
+            .set_ex::<_, _, ()>(redis_key, encoded, self.ttl.as_secs())
+            .await?;
 
         Ok(())
     }
@@ -111,11 +111,11 @@ where
 }
 
 impl CacheFactory for ConnectionManager {
-    fn new_cache<K, V>(&self, name: &str, _ttl: Duration) -> Arc<dyn Store<K, V>>
+    fn new_cache<K, V>(&self, name: &str, ttl: Duration) -> Arc<dyn Store<K, V>>
     where
         K: Hash + Eq + Clone + Serialize + Send + Sync + 'static,
         V: Clone + Serialize + DeserializeOwned + Send + Sync + 'static,
     {
-        Arc::new(RedisCache::new(self.clone(), name))
+        Arc::new(RedisCache::new(self.clone(), name, ttl))
     }
 }

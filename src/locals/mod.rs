@@ -39,6 +39,7 @@ pub use claims::{Authority, Identity};
 #[cfg(feature = "jwt")]
 pub use hs256::HS256Signer;
 pub use idempotency::{CachedResponse, IdempotencyState, IdempotencyStore};
+pub use moka_store::MokaCacheFactory;
 pub use pagination::Pagination;
 pub use provider::Provider;
 #[cfg(feature = "redis")]

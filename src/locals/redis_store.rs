@@ -1,9 +1,12 @@
 use std::{error::Error, marker::PhantomData};
 
-use redis::{AsyncCommands, aio::ConnectionManager};
-use serde::{Serialize, de::DeserializeOwned};
-
 use crate::Store;
+use crate::locals::store::CacheFactory;
+use redis::{AsyncCommands, aio::ConnectionManager};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use std::hash::Hash;
+use std::sync::Arc;
+use std::time::Duration;
 
 pub struct RedisCache<K, V> {
     connection: ConnectionManager,
@@ -104,5 +107,15 @@ where
         connection.unlink::<_, ()>(redis_key).await?;
 
         Ok(())
+    }
+}
+
+impl CacheFactory for ConnectionManager {
+    fn new_cache<K, V>(&self, name: &str, _ttl: Duration) -> Arc<dyn Store<K, V>>
+    where
+        K: Hash + Eq + Clone + Serialize + Send + Sync + 'static,
+        V: Clone + Serialize + DeserializeOwned + Send + Sync + 'static,
+    {
+        Arc::new(RedisCache::new(self.clone(), name))
     }
 }

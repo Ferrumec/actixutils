@@ -126,12 +126,6 @@ impl Store<String, CachedResponse> for MemoryCache {
         self.entries.write().await.remove(key);
         Ok(())
     }
-
-    async fn clear(&self) -> Result<(), Box<dyn Error>> {
-        self.entries.write().await.clear();
-        self.insertion_order.write().await.clear();
-        Ok(())
-    }
 }
 fn cache_key(req: &ServiceRequest) -> String {
     let host = req.connection_info().host().to_string();

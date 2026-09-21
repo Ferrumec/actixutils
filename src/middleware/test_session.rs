@@ -51,9 +51,6 @@ impl Store<Uuid, TestSession> for MockStore {
         map.remove(session_id);
         Ok(())
     }
-    async fn clear(&self) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(())
-    }
 }
 
 // Handler that uses the extractor

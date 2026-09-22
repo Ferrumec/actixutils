@@ -7,7 +7,7 @@
 //! [`ReadContext<T>`](crate::middleware::ReadContext).
 
 use std::sync::Arc;
-use typed_eventbus::{Event, EventStream, Publishable};
+use typed_eventbus::{Event, EventStream, EventType};
 use uuid::Uuid;
 
 /// A request-scoped event publishing context.
@@ -31,7 +31,7 @@ impl Context {
     /// Errors from the underlying [`EventStream`] are logged via `tracing::error!` but
     /// not propagated, to avoid failing a request due to a non-critical observability
     /// side-effect.
-    pub async fn publish<T: Publishable + Sync + Send>(&self, payload: Event<T>) {
+    pub async fn publish<T: EventType + Sync + Send>(&self, payload: Event<T>) {
         let mut event = payload
             .with_producer(self.producer.clone())
             .with_trace_id(self.request_id)

@@ -31,7 +31,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "sync", "rt"] }
 tracing = "0.1.44"
 uuid = { version = "1.23.1", features = ["serde", "v4"] }
-typed-eventbus = { version = "0.2.1", optional = true }
+typed-eventbus = { version = "0.4", optional = true }
 serde_json = { version = "1.0.150"}
 thiserror = { version = "2.0.18"}
 futures = "0.3.33"

@@ -2350,9 +2350,9 @@ dependencies = [
 
 [[package]]
 name = "typed-eventbus"
-version = "0.2.1"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1468e92dbefc3fa95631c8fc4a08e7d0d96e257e799d082d34cdfbb0e6d660f"
+checksum = "584ee028c9bd9fe444c354d7fdd69ccffe41d7c5b52009d14942e87550da1c50"
 dependencies = [
  "async-nats",
  "async-trait",

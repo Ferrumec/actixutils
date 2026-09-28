@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
 use super::types::CachedResponse;
-use crate::Store;
+use ferrumec::Store;
 
 const DEFAULT_MAX_ENTRIES: usize = 10_000;
 

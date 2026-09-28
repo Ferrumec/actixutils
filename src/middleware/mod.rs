@@ -33,7 +33,7 @@ mod cache;
 mod client_ip;
 mod coalesce;
 mod constant_time;
-#[cfg(feature = "es")]
+
 mod context;
 #[cfg(feature = "jwt")]
 mod fns;
@@ -55,7 +55,7 @@ pub use cache::{Cache, CacheMiddleware, CacheStore, CachedResponse};
 pub use client_ip::ClientIpMiddleware;
 pub use coalesce::Singleflight;
 pub use constant_time::ResponseEqualizer;
-#[cfg(feature = "es")]
+
 pub use context::{Context, GetId, ReadContext};
 #[cfg(feature = "jwt")]
 pub use fns::{authority, identity};

@@ -7,7 +7,7 @@
 //! [`ReadContext<T>`](crate::middleware::ReadContext).
 
 use std::sync::Arc;
-use typed_eventbus::{Event, EventStream, EventType};
+use ferrumec::{Event, EventStream, EventType};
 use uuid::Uuid;
 
 /// A request-scoped event publishing context.

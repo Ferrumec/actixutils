@@ -1,4 +1,4 @@
-use crate::Store;
+use ferrumec::Store;
 use crate::extractors::Session;
 use crate::middleware::SessionMiddleware;
 use actix_web::{App, HttpResponse, Responder, test, web};

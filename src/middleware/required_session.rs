@@ -3,7 +3,7 @@
 //! This is the crate's built-in session mechanism: [`RequiredSession`] resolves a
 //! session cookie to a value of type `T` on each request, exposes it to handlers via
 //! the [`Session<T>`] extractor, and persists any changes back to a caller-supplied
-//! [`Store`](crate::Store) after the response is produced.
+//! [`Store`](ferrumec::Store) after the response is produced.
 //!
 //! # Example
 //! ```ignore
@@ -32,7 +32,7 @@ use actix_web::{
     error,
 };
 
-use crate::Store;
+use ferrumec::Store;
 use crate::extractors::Session;
 use futures_util::future::LocalBoxFuture;
 use std::{

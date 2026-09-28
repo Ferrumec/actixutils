@@ -55,7 +55,7 @@ Two related but distinct patterns show up repeatedly:
 | `ClientIpMiddleware` | Resolves the real client IP, trusting `X-Forwarded-For` only from configured proxy networks | `locals::ProxyConfig` (trusted CIDR list) |
 | `PathParams` | Merges matched path parameters on top of the query-string `Filters` map | writes `extractors::Filters` into extensions |
 | `RequestId` | Generates a UUIDv4 per request, records it on the tracing span, adds `X-Request-Id` to the response | none — writes `RequestIdStr` to extensions |
-| `Context` / `ReadContext<T>` (feature `es`) | Builds a per-request event-publishing context (request id + user id + event bus handle) | `Arc<dyn typed_eventbus::EventStream>` you supply |
+| `Context` / `ReadContext<T>` (feature `es`) | Builds a per-request event-publishing context (request id + user id + event bus handle) | `Arc<dyn ferrumec::EventStream>` you supply |
 | `Pagination` / `PaginationMiddleware` | Parses `?page=&limit=` and exposes it via a task-local | Tokio task-local (`PAGINATION`) |
 | `SessionMiddleware<T>` | Cookie-based, server-side session storage with dirty-tracking; extractor is `extractors::Session<T>` | `Arc<dyn locals::Store<Uuid, T>>` you supply |
 | `AttachLocal<T>` / `SetLocal` | Generic building block: extracts a `T` and scopes the rest of the request inside `T::scope(...)` | whatever `T::scope` scopes |

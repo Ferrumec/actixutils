@@ -257,7 +257,7 @@ async fn create_order(req: HttpRequest) -> HttpResponse {
     HttpResponse::Ok().finish()
 }
 # let signer: Arc<dyn actixutils::locals::Validate<Authority>> = unimplemented!();
-# let event_stream: Arc<dyn typed_eventbus::EventStream> = unimplemented!();
+# let event_stream: Arc<dyn ferrumec::EventStream> = unimplemented!();
 ```
 
 `ReadContext::new` takes the shared event-stream handle and a producer name

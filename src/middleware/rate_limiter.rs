@@ -40,7 +40,7 @@
 //! );
 //! ```
 
-use crate::locals::Store;
+use ferrumec::Store;
 use crate::locals::rate_limiter::GetId;
 use actix_web::{
     Error, FromRequest, HttpResponse,

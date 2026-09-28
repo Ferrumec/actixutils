@@ -19,7 +19,7 @@ use actix_web::{Error, HttpResponse};
 use futures_util::future::LocalBoxFuture;
 
 use super::types::CachedResponse;
-use crate::Store;
+use ferrumec::Store;
 
 /// Middleware factory. Wrap a route or scope with `Cache::new(store)`.
 ///

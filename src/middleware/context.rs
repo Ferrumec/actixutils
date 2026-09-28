@@ -41,7 +41,7 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::task::{Context as Ctx, Poll};
-use typed_eventbus::EventStream;
+use ferrumec::EventStream;
 use uuid::Uuid;
 
 /// Middleware factory that constructs a [`Context`] for each request.

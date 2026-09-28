@@ -88,6 +88,6 @@ pub mod pubkey;
 #[cfg(feature = "jwt")]
 pub use extractors::Jwt;
 pub use extractors::{Filters, ReadSession, Session};
-pub use locals::{Authority, Identity, Provider, Sign, Store, Validate};
+pub use locals::{Authority, Identity, Provider, Sign, Validate};
 #[cfg(feature = "jwt")]
 pub use locals::{HS256Signer, RS256Signer, RS256Validator};

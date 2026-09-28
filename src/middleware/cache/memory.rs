@@ -1,4 +1,4 @@
-//! In-memory [`Store`](crate::Store) implementation for development and
+//! In-memory [`Store`](ferrumec::Store) implementation for development and
 //! single-process deployments.
 
 use std::collections::{HashMap, VecDeque};
@@ -8,7 +8,7 @@ use std::error::Error;
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
-use crate::Store;
+use ferrumec::Store;
 use super::types::CachedResponse;
 
 const DEFAULT_MAX_ENTRIES: usize = 10_000;
@@ -34,10 +34,10 @@ impl Entry {
 ///   oldest-inserted entries are evicted first (FIFO), which is a
 ///   deliberately simple policy for this first implementation.
 /// - Not shared across processes. For multi-instance deployments, implement
-///   [`Store`](crate::Store) against a shared backend (e.g. Redis) instead.
+///   [`Store`](ferrumec::Store) against a shared backend (e.g. Redis) instead.
 ///
 /// **Note:** every entry currently expires after a fixed 60 ms, regardless
-/// of any TTL the caller might expect — [`Store::set`](crate::Store::set)
+/// of any TTL the caller might expect — [`Store::set`](ferrumec::Store::set)
 /// has no `ttl` parameter to plumb through. This is fine for exercising the
 /// eviction/expiry logic in tests, but almost certainly too short for real
 /// caching use; treat this as a placeholder until TTL is threaded through.
